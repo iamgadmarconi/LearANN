@@ -196,6 +196,12 @@ impl SimpleRNN {
         }
         output_error
     }
+
+    fn update_weights(&mut self, learning_rate: f64) {
+        for layer in self.layers.iter_mut() {
+            layer.update_weights_adam(learning_rate);
+        }
+    }
 }
 
 fn sigmoid(x: f64) -> f64 {
@@ -236,6 +242,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_initialization() {
+        let rnn = SimpleRNN::new(3, 2, 2, Activation::Sigmoid);
+        for layer in rnn.layers {
+            for weight in layer.weights.iter().flat_map(|row| row.iter()) {
+                assert!(*weight >= -1.0 && *weight <= 1.0);
+            }
+            for bias in layer.biases.iter() {
+                assert!(*bias >= -1.0 && *bias <= 1.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_forward_propagation() {
+        let mut rnn = SimpleRNN::new(1, 3, 1, Activation::ReLU); // Simple config for testing
+        let input = vec![0.5];  // Single input of moderate size
+        let output = rnn.forward(vec![input]);
+        // Since we're not sure what the right output is, we just check the types and no error is thrown
+        assert_eq!(output.len(), 1);  // Ensuring output is of expected size
+    }
+
+    #[test]
     fn test_forward_pass() {
         let mut layer = Layer::new(3, 2, Activation::Tanh);
         layer.weights = vec![vec![0.5, -0.5, 1.0], vec![-1.5, 0.5, 0.0]];
@@ -244,6 +272,20 @@ mod tests {
         let output = layer.forward(&input);
         assert!((output[0] - tanh(1.0 * 0.5 - 2.0 * 0.5 + 3.0 * 1.0)).abs() < 1e-5);
         assert!((output[1] - tanh(-1.5 * 1.0 + 0.5 * 2.0 + 0.0 * 3.0)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_backward_propagation() {
+        let mut rnn = SimpleRNN::new(1, 3, 1, Activation::Sigmoid);
+        let inputs = vec![vec![0.1]];
+        let targets = vec![vec![0.0]];
+        rnn.forward(inputs[0].clone());
+        let grads = rnn.backward(inputs[0].clone(), targets[0].clone());
+
+        // Validate gradients are within expected range (typically gradients are small values)
+        for grad in grads {
+            assert!(grad.abs() < 1.0);
+        }
     }
 
     #[test]
@@ -268,6 +310,7 @@ mod tests {
                                 .collect::<Vec<_>>();
                 rnn.backward(error);
             }
+            println!("Epoch {}: Total Loss {}", epoch, total_loss);
             // Monitor weight changes
             let weight_changes = rnn.layers.iter().zip(&previous_weights).map(|(current, previous)| {
                 current.weights.iter().zip(previous).map(|(cw, pw)| {
@@ -282,5 +325,29 @@ mod tests {
                 break; // Early stopping condition
             }
         }
+    }
+
+    #[test]
+    fn test_learning() {
+        let mut rnn = SimpleRNN::new(2, 3, 1, Activation::Tanh);
+        let inputs = vec![vec![0.0, 1.0], vec![1.0, 0.0]];
+        let targets = vec![vec![1.0], vec![0.0]];
+
+        for _ in 0..100 {
+            let mut total_loss = 0.0;
+            for (input, target) in inputs.iter().zip(targets.iter()) {
+                let output = rnn.forward(input.clone());
+                let loss = output.iter().zip(target.iter())
+                                .map(|(o, t)| (o - t).powi(2))
+                                .sum::<f64>();
+                total_loss += loss;
+                rnn.backward(input.clone(), target.clone());
+            }
+            rnn.update_weights(0.01);
+            if total_loss < 1e-5 {
+                break;
+            }
+        }
+        assert!(total_loss < 1e-5, "Model did not learn successfully");
     }
 }
