@@ -11,6 +11,11 @@ pub struct Layer {
     biases: Vec<f64>,
     hidden_state: Vec<f64>,
     activation: Activation,
+    update_count: usize,
+    mt_weights: Vec<Vec<f64>>,
+    vt_weights: Vec<Vec<f64>>,
+    mt_biases: Vec<f64>,
+    vt_biases: Vec<f64>,
 }
 
 pub struct SimpleRNN {
@@ -19,6 +24,7 @@ pub struct SimpleRNN {
     output_size: usize,
 }
 
+#[derive(Clone)]
 enum Activation {
     Sigmoid,
     Tanh,
@@ -51,12 +57,22 @@ impl Layer {
         }).collect();
         
         let biases: Vec<f64> = (0..output_size).map(|_| rng.gen::<f64>() * 2.0 - 1.0).collect();
+
+        let mt_weights = vec![vec![0.0; input_size]; output_size];
+        let vt_weights = vec![vec![0.0; input_size]; output_size];
+        let mt_biases = vec![0.0; output_size];
+        let vt_biases = vec![0.0; output_size];
         
         Layer {
             weights,
             biases,
             hidden_state: vec![0.0; output_size],
             activation,
+            update_count: 1,
+            mt_weights,
+            vt_weights,
+            mt_biases,
+            vt_biases,
         }
     }
 
@@ -64,18 +80,20 @@ impl Layer {
     fn forward(&mut self, input: &Vec<f64>) -> Vec<f64> {
         let mut output = vec![0.0; self.biases.len()];
         for (i, output_val) in output.iter_mut().enumerate() {
-            *output_val = self.activation.apply(self.biases[i] + input.iter().zip(self.weights[i].iter()).map(|(inp, weight)| inp * weight).sum::<f64>());
+            *output_val = self.activation.apply(
+                self.biases[i] + input.iter().zip(self.weights[i].iter()).map(|(inp, weight)| inp * weight).sum::<f64>()
+            );
         }
         self.hidden_state = output.clone();
         output
-    }
+    }    
 
     fn backward(&mut self, output_error: &Vec<f64>, input: &Vec<f64>) -> Vec<f64> {
         // Calculate the gradient of the output based on the activation function
         let d_output = output_error.iter().zip(self.hidden_state.iter())
             .map(|(err, out)| err * self.activation.derivative(*out))
             .collect::<Vec<f64>>();
-
+    
         // Calculate gradient w.r.t input for the previous layer
         let input_error: Vec<f64> = (0..input.len()).map(|i| {
             self.weights.iter().map(|weights| weights[i])
@@ -83,29 +101,73 @@ impl Layer {
                 .map(|(weight, dout)| weight * dout)
                 .sum()
         }).collect();
-
-        // Store gradients to update weights later
-        self.update_weights(&d_output, input, 0.01);  // Example learning rate
-
+    
+        // Calculate gradients for weights and biases
+        let gradients_weights = self.weights.iter().enumerate().map(|(i, weights)| {
+            weights.iter().enumerate().map(|(j, _)| d_output[i] * input[j]).collect::<Vec<f64>>()
+        }).collect::<Vec<Vec<f64>>>();
+    
+        let gradients_biases = d_output.clone();  // Directly use d_output as gradient for biases
+    
+        // Pass gradients to an update function (considering Adam optimization here)
+        self.update_weights_adam(gradients_weights, gradients_biases, 0.01); // Example learning rate for Adam
+    
         input_error
     }
 
-    fn update_weights(&mut self, d_output: &Vec<f64>, input: &Vec<f64>, learning_rate: f64) {
+    fn update_weights_adam(&mut self, gradients_weights: Vec<Vec<f64>>, gradients_biases: Vec<f64>, lr: f64) {
         for i in 0..self.weights.len() {
             for j in 0..self.weights[i].len() {
-                // Update weights using gradient descent
-                self.weights[i][j] -= learning_rate * d_output[i] * input[j];
+                // Update mt and vt for weights
+                self.mt_weights[i][j] = 0.9 * self.mt_weights[i][j] + 0.1 * gradients_weights[i][j];
+                self.vt_weights[i][j] = 0.999 * self.vt_weights[i][j] + 0.001 * gradients_weights[i][j].powi(2);
+
+                // Compute bias-corrected first and second moment estimates
+                let m_hat = self.mt_weights[i][j] / (1.0 - 0.9f64.powi(self.update_count as i32));
+                let v_hat = self.vt_weights[i][j] / (1.0 - 0.999f64.powi(self.update_count as i32));
+
+                // Update weights
+                self.weights[i][j] -= lr * m_hat / (v_hat.sqrt() + 1e-8);
             }
-            // Update biases
-            self.biases[i] -= learning_rate * d_output[i];
+
+            // Update biases similarly
+            self.mt_biases[i] = 0.9 * self.mt_biases[i] + 0.1 * gradients_biases[i];
+            self.vt_biases[i] = 0.999 * self.vt_biases[i] + 0.001 * gradients_biases[i].powi(2);
+
+            let m_hat = self.mt_biases[i] / (1.0 - 0.9f64.powi(self.update_count as i32));
+            let v_hat = self.vt_biases[i] / (1.0 - 0.999f64.powi(self.update_count as i32));
+
+            self.biases[i] -= lr * m_hat / (v_hat.sqrt() + 1e-8);
+        }
+        self.update_count += 1;  // Increment the counter used for bias correction
+    }    
+
+    pub fn update_weights(&mut self, d_weights: Vec<Vec<f64>>, d_biases: Vec<f64>, t: usize, lr: f64, beta1: f64, beta2: f64, epsilon: f64) {
+        for i in 0..self.weights.len() {
+            for j in 0..self.weights[i].len() {
+                // Update mt and vt for weights
+                self.mt_weights[i][j] = beta1 * self.mt_weights[i][j] + (1.0 - beta1) * d_weights[i][j];
+                self.vt_weights[i][j] = beta2 * self.vt_weights[i][j] + (1.0 - beta2) * d_weights[i][j].powi(2);
+                // Correct mt and vt
+                let mt_hat = self.mt_weights[i][j] / (1.0 - beta1.powi(t as i32));
+                let vt_hat = self.vt_weights[i][j] / (1.0 - beta2.powi(t as i32));
+                // Update weights
+                self.weights[i][j] -= lr * mt_hat / (vt_hat.sqrt() + epsilon);
+            }
+            // Repeat for biases
+            self.mt_biases[i] = beta1 * self.mt_biases[i] + (1.0 - beta1) * d_biases[i];
+            self.vt_biases[i] = beta2 * self.vt_biases[i] + (1.0 - beta2) * d_biases[i].powi(2);
+            let mt_hat = self.mt_biases[i] / (1.0 - beta1.powi(t as i32));
+            let vt_hat = self.vt_biases[i] / (1.0 - beta2.powi(t as i32));
+            self.biases[i] -= lr * mt_hat / (vt_hat.sqrt() + epsilon);
         }
     }
 }
 
 impl SimpleRNN {
-    fn new(num_layers: usize, input_size: usize, output_size: usize) -> Self {
+    fn new(num_layers: usize, input_size: usize, output_size: usize, activation: Activation) -> Self {
         let layers = (0..num_layers).map(|_| {
-            Layer::new(input_size, output_size, Activation::Sigmoid) // Example activation (change to desired activation)
+            Layer::new(input_size, output_size, activation.clone()) 
         }).collect();
         SimpleRNN {
             layers,
@@ -174,37 +236,51 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rnn() {
-        // Initialize an RNN with one layer
-        let mut rnn = SimpleRNN {
-            layers: vec![
-                Layer::new(3, 2, Activation::Sigmoid), // Input size 3, Output size 2
-            ],
-            input_size: 3,
-            output_size: 2,
-        };
+    fn test_forward_pass() {
+        let mut layer = Layer::new(3, 2, Activation::Tanh);
+        layer.weights = vec![vec![0.5, -0.5, 1.0], vec![-1.5, 0.5, 0.0]];
+        layer.biases = vec![0.0, 0.0];
+        let input = vec![1.0, 2.0, 3.0];
+        let output = layer.forward(&input);
+        assert!((output[0] - tanh(1.0 * 0.5 - 2.0 * 0.5 + 3.0 * 1.0)).abs() < 1e-5);
+        assert!((output[1] - tanh(-1.5 * 1.0 + 0.5 * 2.0 + 0.0 * 3.0)).abs() < 1e-5);
+    }
 
-        // Simulate some input data
-        let input = vec![0.5, -1.5, 0.3];
-        
-        // Forward pass
-        let output = rnn.forward(input.clone());
-        println!("Output after forward pass: {:?}", output);
+    #[test]
+    fn test_learning_overfit() {
+        let mut rnn = SimpleRNN::new(3, 2, 2, Activation::Sigmoid);  // Assume constructor parameters are correct
+        let inputs = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
+        let targets = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
+        // Simple training loop to overfit on a very small dataset
+        // Assuming you have access to weights and can calculate gradients
+        let mut previous_weights = rnn.layers.iter().map(|l| l.weights.clone()).collect::<Vec<_>>();
 
-        // Dummy target output for loss calculation (for testing)
-        let target = vec![0.0, 1.0];
-        // Calculate mean squared error and its gradient
-        let error: Vec<f64> = output.iter().zip(target.iter())
-            .map(|(o, t)| o - t)
-            .collect();
-        let loss: f64 = error.iter().map(|e| e.powi(2)).sum::<f64>() / error.len() as f64;
-        println!("Loss: {}", loss);
+        for epoch in 0..10000 {
+            let mut total_loss = 0.0;
+            for (input, target) in inputs.iter().zip(targets.iter()) {
+                let output = rnn.forward(input.clone());
+                let loss = output.iter().zip(target.iter())
+                                .map(|(o, t)| (o - t).powi(2))
+                                .sum::<f64>();
+                total_loss += loss;
+                let error = output.iter().zip(target.iter())
+                                .map(|(o, t)| o - t)
+                                .collect::<Vec<_>>();
+                rnn.backward(error);
+            }
+            // Monitor weight changes
+            let weight_changes = rnn.layers.iter().zip(&previous_weights).map(|(current, previous)| {
+                current.weights.iter().zip(previous).map(|(cw, pw)| {
+                    cw.iter().zip(pw).map(|(c, p)| (c - p).abs()).sum::<f64>()
+                }).sum::<f64>()
+            }).sum::<f64>();
 
-        // Calculate gradients for a backward pass (simple derivative of MSE)
-        let gradients: Vec<f64> = error.iter().map(|&e| 2.0 * e / error.len() as f64).collect();
+            println!("Epoch {}: Total Loss {}, Total Weight Change {}", epoch, total_loss, weight_changes);
+            previous_weights = rnn.layers.iter().map(|l| l.weights.clone()).collect::<Vec<_>>();
 
-        // Backward pass
-        rnn.backward(gradients);
-        println!("Backward pass completed");
+            if total_loss < 1e-5 || weight_changes < 1e-6 {  // Check for minimal weight changes
+                break; // Early stopping condition
+            }
+        }
     }
 }
