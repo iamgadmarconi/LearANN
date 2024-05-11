@@ -1,169 +1,140 @@
-import random
 import numpy as np
-import numba
 
-spec = [
-    ('_input_size', numba.int32),
-    ('_hidden_size', numba.int32),
-    ('_output_size', numba.int32),
-    ('_Wxh', numba.float64[:, :]),  # Weight matrix for input to hidden
-    ('_Whh', numba.float64[:, :]),  # Weight matrix for hidden to hidden
-    ('_Why', numba.float64[:, :]),  # Weight matrix for hidden to output
-    ('_bh', numba.float64[:]),      # Hidden bias
-    ('_by', numba.float64[:]),      # Output bias
+
+input_size = 10
+hidden_size = 5
+output_size = 1
+
+layers_config = [
+    {'input_size': input_size, 'hidden_size': hidden_size, 'output_size': output_size, 'activation': 'relu'},
+    {'input_size': input_size, 'hidden_size': hidden_size, 'output_size': output_size, 'activation': 'tanh'},
+    {'input_size': input_size, 'hidden_size': hidden_size, 'output_size': output_size, 'activation': 'sigmoid'},
 ]
 
-@numba.experimental.jitclass(spec)
+
 class RNN:
 
-    def __init__(self, input_size: int, hidden_size: int, output_size: int) -> None:
-        """
-        Initialize the RNN model
+    def __init__(self, layers_config, optimizer='adam', learning_rate=0.001) -> None:
+        self.layers = [Layer(config['input_size'], config['hidden_size'], config['output_size'], config['activation']) for config in layers_config]
 
+        if optimizer.lower() == 'adam':
+            self.optimizer = Adam(lr=learning_rate)
+
+    def forward(self, x):
+        activation = x
+        for layer in self.layers:
+            activation = layer.forward(activation)
+        return activation
+
+    def backward(self, grad):
+        grad_input = grad
+        for layer in reversed(self.layers):
+            grad_input = layer.backward(grad_input)
+
+    def update(self):
+        """Update the weights of the network using the gradients computed in the backward pass.
+        
         Args:
-        input_size: int
-            The size of the input layer
-        hidden_size: int
-            The size of the hidden layer
-        output_size: int
-            The size of the output layer
-
-        Returns:
-        None
-
-
+            lr (float): The learning rate to use for the update.
         """
-        # The size of the input, hidden, and output layers
-        self._input_size = input_size
-        self._hidden_size = hidden_size
-        self._output_size = output_size
+        for layer in self.layers:
+            self.optimizer.update(layer.weights, layer.grad_weights)
 
-        # The RNN has input to hidden connections parameterized by a weight matrix Wxh,
-        # hidden-to-hidden recurrent connections parameterized by a weight matrix Whh, 
-        # and hidden-to-output connections parameterized by a weight matrix Why
-        # All these weights (Wxh, Whh, Why) are shared across time.
-
-        # Wxh: Weight matrix for input to hidden
-        self._Wxh = np.random.randn(hidden_size, input_size)
-
-        # Whh: Weight matrix for hidden to hidden
-        self._Whh = np.random.randn(hidden_size, hidden_size)
-
-        # Why: Weight matrix for hidden to output
-        self._Why = np.random.randn(output_size, hidden_size)
-
-        # The bias is an "offset" added to each unit in a neural network layer that's independent of the input to the layer. 
-        # The bias permits a layer to model a data space that's centered around some point other than the origin.
-
-        # bh: Hidden bias
-        self._bh = np.zeros(hidden_size)
-
-        # by: Output bias
-        self._by = np.zeros(output_size)
-
-    @property
-    def input_size(self):
+    def train(self, inputs, targets):
+        """Train the network on a single batch of data.
+        
+        Args:
+            x (np.ndarray): The input data.
+            y (np.ndarray): The target data.
+            lr (float): The learning rate to use for the update.
         """
-        The size of the input layer
-        """
-        return self._input_size
+        outputs = self.forward(inputs)
+        loss = ((outputs - targets) ** 2).mean()
+        grad_outputs = 2 * (outputs - targets) / outputs.size
+        self.backward(grad_outputs)
+        self.update()
+        return loss
     
-    @property
-    def hidden_size(self):
-        """
-        The size of the hidden layer
-        """
-        return self._hidden_size
-    
-    @property
-    def output_size(self):
-        """
-        The size of the output layer
-        """
-        return self._output_size
-    
-    @property
-    def Wxh(self):
-        """
-        The weight matrix for input to hidden
-        """
-        return self._Wxh
-    
-    @property
-    def Whh(self):
-        """
-        The weight matrix for hidden to hidden
-        """
-        return self._Whh
-    
-    @property
-    def Why(self):
-        """
-        The weight matrix for hidden to output
-        """
-        return self._Why    
 
-    @property
-    def bh(self):
-        """
-        The hidden bias
-        """
-        return self._bh 
-    
-    @property
-    def by(self):
-        """
-        The output bias
-        """
-        return self._by
+class Layer:
 
-from numba import njit
-import numpy as np
+    def __init__(self, input_size, output_size, activation: str='relu') -> None:
+        self.input_size = input_size
+        self.output_size = output_size
 
-@njit
-def rnn_step(Wxh, Whh, Why, bh, by, h, x):
-    """
-    Perform a single step of the RNN, ensuring all data are floating point for numba compatibility.
-    """
-    # Convert inputs to float if not already, and reshape to 2D column vectors
-    x = np.ascontiguousarray(x, dtype=np.float64).reshape(-1, 1)
-    h = np.ascontiguousarray(h, dtype=np.float64).reshape(-1, 1)
+        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)
 
-    # Compute the next hidden state and the output using float arrays
-    h_next = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h) + bh.reshape(-1, 1))
-    y = np.dot(Why, h_next) + by.reshape(-1, 1)
+        self.biases = np.zeros(output_size)
+        self.activation = activation
 
-    return y.ravel(), h_next.ravel()
+    def forward(self, x):
+        self.z = np.dot(self.weights, x) + self.biases
+        return self.apply_activation(self.z)
 
-@njit
-def forward(rnn, inputs):
-    """
-    Process a sequence of inputs through the RNN using numba's nopython mode.
-    """
-    # Initialize hidden state as a floating point 2D column vector
-    h = np.zeros((rnn.hidden_size, 1), dtype=np.float64)
-    outputs = []
-    for x in inputs:
-        # Ensure each input x is a contiguous floating point 2D column vector
-        x = np.ascontiguousarray(x, dtype=np.float64).reshape(-1, 1)
-        y, h = rnn_step(rnn.Wxh, rnn.Whh, rnn.Why, rnn.bh, rnn.by, h, x)
-        outputs.append(y)
-    return outputs, h.ravel()
+    def apply_activation(self, z):
+        if self.activation == 'relu':
+            return np.maximum(0, z)
+        elif self.activation == 'tanh':
+            return np.tanh(z)
+        elif self.activation == 'sigmoid':
+            return 1 / (1 + np.exp(-z))
+        return z
 
-# Define a simple test to run the forward function
-def test_rnn():
-    input_size = 10
-    hidden_size = 20
-    output_size = 5
-    rnn = RNN(input_size, hidden_size, output_size)
-    
-    # Generate a simple sequence of 5 random float vectors
-    inputs = np.random.randn(5, input_size).astype(np.float64)
-    
-    # Call forward to process the sequence
-    outputs, final_hidden_state = forward(rnn, inputs)
-    print("Outputs:", outputs)
-    print("Final Hidden State:", final_hidden_state)
+    def backward(self, grad):
+        if self.activation == 'relu':
+            grad_z = grad * (self.z > 0).astype(float)
+        elif self.activation == 'sigmoid':
+            sig = self.apply_activation(self.z)
+            grad_z = grad * sig * (1 - sig)
+        elif self.activation == 'tanh':
+            tanh = self.apply_activation(self.z)
+            grad_z = grad * (1 - tanh ** 2)
+        else:
+            grad_z = grad
 
-# Assuming RNN class definition is available and correctly defined
-test_rnn()
+        self.grad_weights = np.outer(grad_z, )
+
+    def update(self, lr):
+        pass
+
+    def train(self, x, y, lr):
+        pass
+
+
+class Optimizer:
+
+    def __init__(self, lr) -> None:
+        self.learing_rate = lr
+
+    def update(self):
+        raise NotImplementedError
+
+
+class Adam(Optimizer):
+
+    def __init__(self, lr, beta1=0.9, beta2=0.999, epsilon=1e-8) -> None:
+        super().__init__(lr)
+
+        self.beta1 = beta1
+        self.beta2 = beta2
+
+        self.epsilon = epsilon
+
+        self.m = None  
+        self.v = None
+        self.t = 0
+
+    def update(self, weights, grad_weights):
+        if self.m is None:
+            self.m = np.zeros_like(weights)
+            self.v = np.zeros_like(weights)
+
+        self.t += 1
+
+        self.m = self.beta1 * self.m + (1 - self.beta1) * grad_weights
+        self.v = self.beta2 * self.v + (1 - self.beta2) * grad_weights**2
+
+        m_hat = self.m / (1 - self.beta1**self.t)
+        v_hat = self.v / (1 - self.beta2**self.t)
+
+        weights -= self.learing_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
