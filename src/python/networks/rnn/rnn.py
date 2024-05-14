@@ -1,13 +1,22 @@
-import numpy as np
-
-
-from utils.optimizers import Adam
+from utils.optimizers import Adam, Adagrad, GradientDescent
 from utils.layers import Layer
 
 class RNN:
-    def __init__(self, layers_config):
+    def __init__(self, layers_config, optimizer_name: str = 'adam', optimizer_params: dict = {'lr': 0.01}):
+        self.optimizer = self._create_optimizer(optimizer_name, optimizer_params)
         self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
-        self.optimizer = Adam(lr=0.001)  # Adjust learning rate if necessary
+
+    def _create_optimizer(self, optimizer_name, optimizer_params):
+        name = optimizer_name.lower()
+
+        if name == 'gradientdescent':
+            return GradientDescent(**optimizer_params)
+        elif name == 'adagrad':
+            return Adagrad(**optimizer_params)
+        elif name == 'adam':
+            return Adam(**optimizer_params)
+        else:
+            raise ValueError(f"Unsupported optimizer: {optimizer_name}")
 
     def forward(self, x):
         activation = x

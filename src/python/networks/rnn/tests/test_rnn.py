@@ -60,7 +60,10 @@ def test_rnn_on_sine_wave():
         {'input_size': 50, 'output_size': 50, 'activation': 'tanh'},
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
-    rnn = RNN(layers_config)
+
+    optimizer_config = {'lr': 0.01}
+
+    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
     # Training loop
     for epoch in range(100):
@@ -82,6 +85,58 @@ def test_rnn_on_sine_wave():
     # Plot the results
     plot_sine_wave(y_test, predictions)
 
-# Run the test
-if __name__ == "__main__":
-    test_rnn_on_sine_wave()
+
+def test_rnn_with_adam():
+    np.random.seed(42)  # For reproducibility
+
+    layers_config = [
+        {'input_size': 5, 'output_size': 10, 'activation': 'relu'},
+        {'input_size': 10, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 1, 'activation': 'linear'}
+    ]
+
+    optimizer_config = {'lr': 0.01, 'beta1': 0.9, 'beta2': 0.999, 'epsilon': 1e-8}
+
+    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
+    
+    # Example training data
+    inputs = np.random.randn(5, 1)
+    targets = np.random.randn(1, 1)
+    
+    # Training loop
+    for epoch in range(1000):
+        loss = rnn.train(inputs, targets)
+        if epoch % 100 == 0:
+            print(f'Epoch {epoch}, Loss: {loss}')
+
+    # Test forward pass
+    output = rnn.forward(inputs)
+    print("Output after training:", output)
+
+
+def test_rnn_with_adagrad():
+    np.random.seed(42)  # For reproducibility
+
+    layers_config = [
+        {'input_size': 5, 'output_size': 10, 'activation': 'relu'},
+        {'input_size': 10, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 1, 'activation': 'linear'}
+    ]
+
+    optimizer_config = {'lr': 0.01, 'epsilon': 1e-8}
+
+    rnn = RNN(layers_config, optimizer_name='adagrad', optimizer_params=optimizer_config)
+    
+    # Example training data
+    inputs = np.random.randn(5, 1)
+    targets = np.random.randn(1, 1)
+    
+    # Training loop
+    for epoch in range(1000):
+        loss = rnn.train(inputs, targets)
+        if epoch % 100 == 0:
+            print(f'Epoch {epoch}, Loss: {loss}')
+
+    # Test forward pass
+    output = rnn.forward(inputs)
+    print("Output after training:", output)
