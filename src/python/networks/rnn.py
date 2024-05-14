@@ -10,10 +10,9 @@ class Layer:
         self.activation = activation
 
     def forward(self, x):
-        # Ensure input is a 2D column vector if not already
         if x.ndim == 1:
             x = x.reshape(-1, 1)
-        self.input = x  # Store the input for use in the backward pass
+        self.input = x
         self.z = np.dot(self.weights, x) + self.biases
         return self.apply_activation(self.z)
 
@@ -25,12 +24,11 @@ class Layer:
         elif self.activation == 'tanh':
             return np.tanh(z)
         else:
-            return z  # Linear activation as default
+            return z
 
     def backward(self, grad_output):
         if grad_output.ndim == 1:
             grad_output = grad_output.reshape(-1, 1)
-        # Calculate gradient of activation
         if self.activation == 'relu':
             grad_z = grad_output * (self.z > 0).astype(float)
         elif self.activation == 'sigmoid':
@@ -40,16 +38,11 @@ class Layer:
             tanh = self.apply_activation(self.z)
             grad_z = grad_output * (1 - tanh ** 2)
         else:
-            grad_z = grad_output  # Linear activation
+            grad_z = grad_output
 
-        # Ensure grad_z is 2D
-        grad_z = grad_z.reshape(self.output_size, -1)  # Correct reshaping to ensure 2D array
-        
-        # Compute gradients with respect to weights and biases
+        grad_z = grad_z.reshape(self.output_size, -1)
         self.grad_weights = np.dot(grad_z, self.input.T)
         self.grad_biases = grad_z.sum(axis=1, keepdims=True)
-        
-        # Compute gradient with respect to input to this layer
         grad_input = np.dot(self.weights.T, grad_z)
         return grad_input
 
@@ -74,31 +67,18 @@ class Adam(Optimizer):
 
     def update(self, param, grad_param, name):
         self.initialize_moments(param.shape, name)
-
-        # Increment time step
         self.t += 1
-
-        # Update biased first moment estimate
         self.m[name] = self.beta1 * self.m[name] + (1 - self.beta1) * grad_param
-
-        # Update biased second raw moment estimate
         self.v[name] = self.beta2 * self.v[name] + (1 - self.beta2) * (grad_param ** 2)
-
-        # Compute bias-corrected first moment estimate
         m_hat = self.m[name] / (1 - self.beta1 ** self.t)
-
-        # Compute bias-corrected second raw moment estimate
         v_hat = self.v[name] / (1 - self.beta2 ** self.t)
-
-        # Update parameter
         param -= self.learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)
-
         return param
 
 class RNN:
     def __init__(self, layers_config):
         self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
-        self.optimizer = Adam(lr=0.001)
+        self.optimizer = Adam(lr=0.01)  # Increased learning rate
 
     def forward(self, x):
         activation = x
@@ -124,10 +104,10 @@ class RNN:
         self.update_weights()
         return loss
 
+
 def test_rnn():
     np.random.seed(42)  # For reproducibility
 
-    # Example layer configuration
     layers_config = [
         {'input_size': 5, 'output_size': 10, 'activation': 'relu'},
         {'input_size': 10, 'output_size': 100, 'activation': 'relu'},
