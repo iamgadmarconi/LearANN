@@ -2,7 +2,7 @@ from utils.optimizers import Adam, Adagrad, GradientDescent
 from utils.layers import Layer
 
 class RNN:
-    def __init__(self, layers_config, optimizer_name: str = 'adam', optimizer_params: dict = {'lr': 0.01}):
+    def __init__(self, layers_config, optimizer_name: str = 'adam', optimizer_params: dict = {'lr': 0.01}, cuda=False):
         self.optimizer = self._create_optimizer(optimizer_name, optimizer_params)
         self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
 
@@ -19,15 +19,13 @@ class RNN:
             raise ValueError(f"Unsupported optimizer: {optimizer_name}")
 
     def forward(self, x):
-        activation = x
         for layer in self.layers:
-            activation = layer.forward(activation)
-        return activation
+            x = layer.forward(x)
+        return x
 
     def backward(self, grad_output):
-        grad_input = grad_output
         for layer in reversed(self.layers):
-            grad_input = layer.backward(grad_input)
+            grad_output = layer.backward(grad_output)
 
     def update_weights(self):
         for i, layer in enumerate(self.layers):
