@@ -5,10 +5,12 @@ class Optimizer:
     def __init__(self, lr):
         self.learning_rate = lr
 
+        self._initialized = False
+
     def update(self, param, grad_param, name):
         raise NotImplementedError
 
-    def initialize_parameters(self, shape, name):
+    def initialize_parameters(self, params):
         raise NotImplementedError
 
 
@@ -22,13 +24,14 @@ class Adam(Optimizer):
         self.v = {}
         self.t = 0
 
-    def initialize_parameters(self, shape, name):
-        if name not in self.m:
-            self.m[name] = np.zeros(shape)
-            self.v[name] = np.zeros(shape)
+    def initialize_parameters(self, params):
+        if not self._initialized:
+            self._initialized = True
+            for name, shape in params.items():
+                self.m[name] = np.zeros(shape)
+                self.v[name] = np.zeros(shape)
 
     def update(self, param, grad_param, name):
-        self.initialize_parameters(param.shape, name)
         self.t += 1
         self.m[name] = self.beta1 * self.m[name] + (1 - self.beta1) * grad_param
         self.v[name] = self.beta2 * self.v[name] + (1 - self.beta2) * (grad_param ** 2)
@@ -45,12 +48,13 @@ class Adagrad(Optimizer):
         self.epsilon = epsilon
         self.cumulative_grads = {}
 
-    def initialize_parameters(self, shape, name):
-        if name not in self.cumulative_grads:
-            self.cumulative_grads[name] = np.zeros(shape)
+    def initialize_parameters(self, params):
+        if not self._initialized:
+            self._initialized = True
+            for name, shape in params.items():
+                self.cumulative_grads[name] = np.zeros(shape)
 
     def update(self, param, grad_param, name):
-        self.initialize_parameters(param.shape, name)
         self.cumulative_grads[name] += grad_param ** 2
         param -= self.learning_rate * grad_param / (np.sqrt(self.cumulative_grads[name]) + self.epsilon)
         return param

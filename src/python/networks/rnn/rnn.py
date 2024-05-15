@@ -2,21 +2,40 @@ from utils.optimizers import Adam, Adagrad, GradientDescent
 from utils.layers import Layer
 
 class RNN:
-    def __init__(self, layers_config, optimizer_name: str = 'adam', optimizer_params: dict = {'lr': 0.01}, cuda=False):
-        self.optimizer = self._create_optimizer(optimizer_name, optimizer_params)
+
+    def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, cuda=False):
         self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
 
+        if optimizer_params is None:
+            optimizer_params = {'lr': 0.01}
+
+        self.optimizer = self._create_optimizer(optimizer_name, optimizer_params)
+
     def _create_optimizer(self, optimizer_name, optimizer_params):
+
         name = optimizer_name.lower()
 
+        print(f"Creating optimizer: {name}")
+
         if name == 'gradientdescent':
-            return GradientDescent(**optimizer_params)
+            optimizer = GradientDescent(**optimizer_params)
+            
         elif name == 'adagrad':
-            return Adagrad(**optimizer_params)
+            optimizer = Adagrad(**optimizer_params)
+            param_shapes = {f'layer_{i}_weights': layer.weights.shape for i, layer in enumerate(self.layers)}
+            param_shapes.update({f'layer_{i}_biases': layer.biases.shape for i, layer in enumerate(self.layers)})
+            optimizer.initialize_parameters(param_shapes)
+
         elif name == 'adam':
-            return Adam(**optimizer_params)
+            optimizer = Adam(**optimizer_params)
+            param_shapes = {f'layer_{i}_weights': layer.weights.shape for i, layer in enumerate(self.layers)}
+            param_shapes.update({f'layer_{i}_biases': layer.biases.shape for i, layer in enumerate(self.layers)})
+            optimizer.initialize_parameters(param_shapes)
+
         else:
             raise ValueError(f"Unsupported optimizer: {optimizer_name}")
+        
+        return optimizer
 
     def forward(self, x):
         for layer in self.layers:
