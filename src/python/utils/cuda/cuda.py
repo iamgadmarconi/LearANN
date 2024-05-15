@@ -7,12 +7,33 @@ from pycuda.compiler import SourceModule
 
 from utils.utils import get_base_path
 
-# Load CUDA kernel from PTX file
+
 def get_function():
-    kernel_path = os.path.join(get_base_path(), 'cuda', 'math.ptx')
-    with open(kernel_path, "rb") as f:
-        kernel_code = f.read()
-    mod = SourceModule(kernel_code.decode('utf-8'))
+    # kernel_path = os.path.join(get_base_path(), 'cuda', 'math.ptx')
+    # with open(kernel_path, "rb") as f:
+    #     kernel_code = f.read()
+    # mod = SourceModule(kernel_code.decode('utf-8'))
+    mod = SourceModule("""
+    __global__ void matrixMulKernel(float* A, float* B, float* C, int N) {
+        int row = blockIdx.y * blockDim.y + threadIdx.y;
+        int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (row < N && col < N) {
+            float value = 0;
+            for (int k = 0; k < N; ++k) {
+                value += A[row * N + k] * B[k * N + col];
+            }
+            C[row * N + col] = value;
+        }
+    }
+
+    __global__ void dotProductKernel(float* A, float* B, float* C, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            C[idx] = A[idx] * B[idx];
+        }
+    }
+    """)
     matrix_mul = mod.get_function("matrixMulKernel")
     dot_product = mod.get_function("dotProductKernel")
     return {"matrix_mul": matrix_mul, "dot_product": dot_product}
