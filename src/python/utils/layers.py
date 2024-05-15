@@ -33,13 +33,21 @@ class Layer:
         return self.activation(self.z)
 
     def backward(self, grad_output):
+        # Ensure grad_output is 2D for matrix operations
         if grad_output.ndim == 1:
             grad_output = grad_output.reshape(-1, 1)
+
+        # Calculate the gradient of the activation function
         grad_z = grad_output * self.activation_grad(self.z)
+
+        # Calculate gradients for weights and biases
         self.grad_weights = np.dot(grad_z, self.input.T)
         self.grad_biases = grad_z.sum(axis=1, keepdims=True)
+
+        # Propagate the gradient backwards
         grad_input = np.dot(self.weights.T, grad_z)
         return grad_input
+
 
     # Activation functions and their gradients
     @staticmethod
@@ -152,6 +160,11 @@ class LSTMCell:
             dh_next = np.resize(dh_next, (self.hidden_size, batch_size))
         if dc_next.shape[0] != self.hidden_size:
             dc_next = np.resize(dc_next, (self.hidden_size, batch_size))
+
+        if dh_next.ndim == 1:
+            dh_next = dh_next.reshape(self.hidden_size, -1)
+        if dc_next.ndim == 1:
+            dc_next = dc_next.reshape(self.hidden_size, -1)
 
         do = dh_next * np.tanh(self.c)
         dc = dc_next + dh_next * self.o_gate * (1 - np.tanh(self.c) ** 2)
