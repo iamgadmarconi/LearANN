@@ -89,4 +89,42 @@ extern "C" {
             grad[idx] = 2 * (pred[idx] - target[idx]) / N;
         }
     }
+    __global__ void elementwiseMulKernel(float* A, float* B, float* C, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            C[idx] = A[idx] * B[idx];
+        }
+    }
+    __global__ void matrixMulTransposeKernel(float* A, float* B, float* C, int rows, int cols) {
+        int row = blockIdx.x * blockDim.x + threadIdx.x;
+        if (row < rows) {
+            float value = 0;
+            for (int j = 0; j < cols; ++j) {
+                value += A[j * rows + row] * B[j];
+            }
+            C[row] = value;
+        }
+    }
+    __global__ void sumKernel(float* input, float* output, int N) {
+        extern __shared__ float sdata[];
+        int tid = threadIdx.x;
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+        // Load input into shared memory
+        sdata[tid] = (i < N) ? input[i] : 0;
+        __syncthreads();
+
+        // Perform reduction in shared memory
+        for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+            if (tid < s) {
+                sdata[tid] += sdata[tid + s];
+            }
+            __syncthreads();
+        }
+
+        // Write result for this block to global memory
+        if (tid == 0) {
+            output[blockIdx.x] = sdata[0];
+        }
+    }
 }
