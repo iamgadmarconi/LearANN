@@ -57,7 +57,8 @@ def test_rnn_on_sine_wave():
     # Configure and create RNN
     layers_config = [
         {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
-        {'input_size': 50, 'output_size': 50, 'activation': 'tanh'},
+        {'input_size': 50, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 50, 'activation': 'relu'},
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
