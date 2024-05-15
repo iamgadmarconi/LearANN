@@ -7,19 +7,29 @@ from utils.cuda.cuda import gpu_mse_loss
 
 class RNN:
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, **kwargs):
-        layer_type = kwargs.get('layer_type', 'dense').lower()
         use_cuda = kwargs.get('cuda', False)
 
-        if layer_type == 'lstm':
-            self.layers = [LSTMCell(config['input_size'], config['output_size']) for config in layers_config]
-        else:
-            self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
+        self.layers = []
 
-        if use_cuda:
-            if layer_type != 'lstm':
-                self.layers = [GPULayer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
+        for config in layers_config:
+            try:
+                layer_type = config['type']
+            except KeyError:
+                layer_type = 'dense'
+
+            if layer_type == 'lstm':
+                if use_cuda:
+                    raise NotImplementedError("LSTM not implemented for GPU")
+                print(f"Initializing LSTMCell with input_size={config['input_size']} and hidden_size={config['output_size']}")
+                self.layers.append(LSTMCell(config['input_size'], config['output_size']))
             else:
-                raise NotImplementedError("LSTM is not supported on GPU yet.")
+                if use_cuda:
+                    print(f"Initializing GPU Layers with input_size={config['input_size']} and output_size={config['output_size']}")
+                    self.layers.append(GPULayer(config['input_size'], config['output_size'], config['activation']))
+                else:
+                    print(f"Initializing Layer with input_size={config['input_size']} and output_size={config['output_size']}")
+                    self.layers.append(Layer(config['input_size'], config['output_size'], config['activation']))
+
 
         if optimizer_params is None:
             optimizer_params = {'lr': 0.01}
@@ -50,6 +60,7 @@ class RNN:
             h, c = np.zeros((self.layers[0].hidden_size, batch_size)), np.zeros((self.layers[0].hidden_size, batch_size))
             for layer in self.layers:
                 h, c = layer.forward(x, h, c)
+                x = h  # Ensure x is updated to h for the next layer
             return h
         else:
             for layer in self.layers:
