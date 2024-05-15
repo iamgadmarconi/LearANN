@@ -8,6 +8,6 @@ if __name__ == '__main__':
     # test_rnn_with_adam()
     # test_rnn_with_grad_descent()
 
-    # test_rnn_with_cuda()
+    test_rnn_with_cuda()
 
     print("Done!")

@@ -1,124 +1,16 @@
-import os
 
 import pycuda.driver as cuda
 import pycuda.autoinit
 import numpy as np
-from pycuda.compiler import SourceModule
 
-from utils.utils import get_base_path
+from utils.cuda.math import get_function
 
-
-def get_function():
-    mod = SourceModule("""
-    __global__ void matrixMulKernel(float* A, float* B, float* C, int N) {
-        int row = blockIdx.y * blockDim.y + threadIdx.y;
-        int col = blockIdx.x * blockDim.x + threadIdx.x;
-        if (row < N && col < N) {
-            float value = 0;
-            for (int k = 0; k < N; ++k) {
-                value += A[row * N + k] * B[k * N + col];
-            }
-            C[row * N + col] = value;
-        }
-    }
-    __global__ void dotProductKernel(float* A, float* B, float* C, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            C[idx] = A[idx] * B[idx];
-        }
-    }
-    __global__ void reluKernel(float* x, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            y[idx] = max(0.0f, x[idx]);
-        }
-    }
-    __global__ void reluGradKernel(float* x, float* grad, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            y[idx] = (x[idx] > 0) ? grad[idx] : 0.0f;
-        }
-    }
-    __global__ void sigmoidKernel(float* x, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            y[idx] = 1.0f / (1.0f + expf(-x[idx]));
-        }
-    }
-    __global__ void sigmoidGradKernel(float* x, float* grad, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            float sigmoid_val = 1.0f / (1.0f + expf(-x[idx]));
-            y[idx] = grad[idx] * sigmoid_val * (1 - sigmoid_val);
-        }
-    }
-    __global__ void tanhKernel(float* x, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            y[idx] = tanhf(x[idx]);
-        }
-    }
-    __global__ void tanhGradKernel(float* x, float* grad, float* y, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            float tanh_val = tanhf(x[idx]);
-            y[idx] = grad[idx] * (1 - tanh_val * tanh_val);
-        }
-    }
-    __global__ void mseLossKernel(float* pred, float* target, float* loss, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            float diff = pred[idx] - target[idx];
-            atomicAdd(loss, diff * diff / N);
-        }
-    }
-    __global__ void mseGradKernel(float* pred, float* target, float* grad, int N) {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx < N) {
-            grad[idx] = 2 * (pred[idx] - target[idx]) / N;
-        }
-    }
-    __global__ void matrixVectorMulKernel(float* A, float* B, float* C, int rows, int cols) {
-        int row = blockIdx.x * blockDim.x + threadIdx.x;
-        if (row < rows) {
-            float value = 0;
-            for (int j = 0; j < cols; ++j) {
-                value += A[row * cols + j] * B[j];
-            }
-            C[row] = value;
-        }
-    }
-    """)
-    matrix_mul = mod.get_function("matrixMulKernel")
-    dot_product = mod.get_function("dotProductKernel")
-    relu = mod.get_function("reluKernel")
-    relu_grad = mod.get_function("reluGradKernel")
-    sigmoid = mod.get_function("sigmoidKernel")
-    sigmoid_grad = mod.get_function("sigmoidGradKernel")
-    tanh = mod.get_function("tanhKernel")
-    tanh_grad = mod.get_function("tanhGradKernel")
-    mse_loss = mod.get_function("mseLossKernel")
-    mse_grad = mod.get_function("mseGradKernel")
-    matrixVectorMulKernel = mod.get_function("matrixVectorMulKernel")
-
-    return {
-        "matrix_mul": matrix_mul,
-        "matrix_vector_mul": matrixVectorMulKernel,
-        "dot_product": dot_product,
-        "relu": relu,
-        "relu_grad": relu_grad,
-        "sigmoid": sigmoid,
-        "sigmoid_grad": sigmoid_grad,
-        "tanh": tanh,
-        "tanh_grad": tanh_grad,
-        "mse_loss": mse_loss,
-        "mse_grad": mse_grad
-    }
+CUDA_FUNCTIONS = get_function()
 
 # Helper function to perform matrix multiplication on GPU
 def gpu_matrix_mul(A, B, N):
-    function_dict = get_function()
-    matrix_mul = function_dict["matrix_mul"]
+
+    matrix_mul = CUDA_FUNCTIONS["matrix_mul"]
     
     A = A.astype(np.float32)
     B = B.astype(np.float32)
@@ -147,8 +39,8 @@ def gpu_matrix_mul(A, B, N):
 
 # Helper function to perform dot product on GPU
 def gpu_dot_product(A, B, N):
-    function_dict = get_function()
-    dot_product = function_dict["dot_product"]
+
+    dot_product = CUDA_FUNCTIONS["dot_product"]
     
     A = A.astype(np.float32)
     B = B.astype(np.float32)
@@ -177,7 +69,6 @@ def gpu_dot_product(A, B, N):
 
 
 def gpu_activation(activation_type, x, N):
-    function_dict = get_function()
     x = x.astype(np.float32)
     y = np.zeros_like(x)
     
@@ -193,7 +84,7 @@ def gpu_activation(activation_type, x, N):
     grid_size = (N // block_size[0] + 1, 1, 1)
     
     # Launch the kernel
-    function_dict[activation_type](x_gpu, y_gpu, np.int32(N), block=block_size, grid=grid_size)
+    CUDA_FUNCTIONS[activation_type](x_gpu, y_gpu, np.int32(N), block=block_size, grid=grid_size)
     
     # Copy the result back to the host
     cuda.memcpy_dtoh(y, y_gpu)
@@ -202,7 +93,6 @@ def gpu_activation(activation_type, x, N):
 
 
 def gpu_activation_grad(activation_type, x, grad, N):
-    function_dict = get_function()
     x = x.astype(np.float32)
     grad = grad.astype(np.float32)
     y = np.zeros_like(x)
@@ -221,7 +111,7 @@ def gpu_activation_grad(activation_type, x, grad, N):
     grid_size = (N // block_size[0] + 1, 1, 1)
     
     # Launch the kernel
-    function_dict[activation_type](x_gpu, grad_gpu, y_gpu, np.int32(N), block=block_size, grid=grid_size)
+    CUDA_FUNCTIONS[activation_type](x_gpu, grad_gpu, y_gpu, np.int32(N), block=block_size, grid=grid_size)
     
     # Copy the result back to the host
     cuda.memcpy_dtoh(y, y_gpu)
@@ -230,7 +120,6 @@ def gpu_activation_grad(activation_type, x, grad, N):
 
 
 def gpu_mse_loss(pred, target, N):
-    function_dict = get_function()
     pred = pred.astype(np.float32)
     target = target.astype(np.float32)
     loss = np.zeros(1, dtype=np.float32)
@@ -249,7 +138,7 @@ def gpu_mse_loss(pred, target, N):
     grid_size = (N // block_size[0] + 1, 1, 1)
     
     # Launch the kernel
-    function_dict["mse_loss"](pred_gpu, target_gpu, loss_gpu, np.int32(N), block=block_size, grid=grid_size)
+    CUDA_FUNCTIONS["mse_loss"](pred_gpu, target_gpu, loss_gpu, np.int32(N), block=block_size, grid=grid_size)
     
     # Copy the result back to the host
     cuda.memcpy_dtoh(loss, loss_gpu)
@@ -258,7 +147,6 @@ def gpu_mse_loss(pred, target, N):
 
 
 def gpu_mse_grad(pred, target, N):
-    function_dict = get_function()
     pred = pred.astype(np.float32)
     target = target.astype(np.float32)
     grad = np.zeros_like(pred)
@@ -277,7 +165,7 @@ def gpu_mse_grad(pred, target, N):
     grid_size = (N // block_size[0] + 1, 1, 1)
     
     # Launch the kernel
-    function_dict["mse_grad"](pred_gpu, target_gpu, grad_gpu, np.int32(N), block=block_size, grid=grid_size)
+    CUDA_FUNCTIONS["mse_grad"](pred_gpu, target_gpu, grad_gpu, np.int32(N), block=block_size, grid=grid_size)
     
     # Copy the result back to the host
     cuda.memcpy_dtoh(grad, grad_gpu)
@@ -304,7 +192,7 @@ def gpu_matrix_vector_mul(A, B):
     # Define block and grid sizes
     block_size = (256, 1, 1)
     grid_size = (rows // block_size[0] + 1, 1, 1)
-    matrix_vector_mul = get_function()["matrix_vector_mul"]
+    matrix_vector_mul = CUDA_FUNCTIONS["matrix_vector_mul"]
     matrix_vector_mul(A_gpu, B_gpu, C_gpu, np.int32(rows), np.int32(cols), block=block_size, grid=grid_size)
 
     # Copy the result back to the host

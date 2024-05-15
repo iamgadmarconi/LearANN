@@ -88,5 +88,5 @@ class GPULayer(Layer):
         self.z += self.biases
         return self.activation(self.z)
 
-    def backward(self, grad_output):
-        pass
+    # def backward(self, grad_output):
+    #     pass
