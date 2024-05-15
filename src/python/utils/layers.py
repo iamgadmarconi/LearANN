@@ -1,7 +1,7 @@
 import numpy as np
 
 
-from utils.cuda.cuda import gpu_activation, gpu_activation_grad, gpu_dot_product, gpu_matrix_mul, gpu_mse_grad, gpu_mse_loss, gpu_matrix_vector_mul
+from utils.cuda.cuda import *
 
 
 class Layer:
@@ -80,13 +80,22 @@ class GPULayer(Layer):
     def __init__(self, input_size, output_size, activation='relu'):
         super().__init__(input_size, output_size, activation)
 
+        self.activation_type = activation
+
     def forward(self, x):
         if x.ndim == 1:
             x = x.reshape(-1, 1)
         self.input = x
         self.z = gpu_matrix_vector_mul(self.weights, x)
         self.z += self.biases
-        return self.activation(self.z)
+        return gpu_activation(self.activation_type, self.z, self.z.size)
 
-    # def backward(self, grad_output):
-    #     pass
+    def backward(self, grad_output):
+        if grad_output.ndim == 1:
+            grad_output = grad_output.reshape(-1, 1)
+        grad_z = gpu_elementwise_mul(grad_output, self.activation_grad(self.z))
+        self.grad_weights = gpu_matrix_vector_mul(grad_z, self.input.T)
+        self.grad_biases = gpu_sum(grad_z)
+        grad_input = gpu_matrix_vector_mul(self.weights.T, grad_z)
+        return grad_input
+    

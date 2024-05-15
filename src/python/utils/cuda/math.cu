@@ -75,6 +75,20 @@ extern "C" {
         }
     }
 
+    __global__ void linearKernel(float* x, float* y, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            y[idx] = x[idx];
+        }
+    }
+
+    __global__ void linearGradKernel(float* x, float* grad, float* y, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            y[idx] = grad[idx];
+        }
+    }
+
     __global__ void mseLossKernel(float* pred, float* target, float* loss, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {

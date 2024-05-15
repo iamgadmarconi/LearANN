@@ -58,6 +58,18 @@ def get_function():
             y[idx] = grad[idx] * (1 - tanh_val * tanh_val);
         }
     }
+    __global__ void linearKernel(float* x, float* y, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            y[idx] = x[idx];
+        }
+    }
+    __global__ void linearGradKernel(float* x, float* grad, float* y, int N) {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if (idx < N) {
+            y[idx] = grad[idx];
+        }
+    }
     __global__ void mseLossKernel(float* pred, float* target, float* loss, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
@@ -128,6 +140,8 @@ def get_function():
     sigmoid_grad = mod.get_function("sigmoidGradKernel")
     tanh = mod.get_function("tanhKernel")
     tanh_grad = mod.get_function("tanhGradKernel")
+    linear = mod.get_function("linearKernel")
+    linear_grad = mod.get_function("linearGradKernel")
     mse_loss = mod.get_function("mseLossKernel")
     mse_grad = mod.get_function("mseGradKernel")
     matrixVectorMulKernel = mod.get_function("matrixVectorMulKernel")
@@ -145,6 +159,8 @@ def get_function():
         "sigmoid_grad": sigmoid_grad,
         "tanh": tanh,
         "tanh_grad": tanh_grad,
+        "linear": linear,
+        "linear_grad": linear_grad,
         "mse_loss": mse_loss,
         "mse_grad": mse_grad,
         "elementwise_mul": elementwiseMulKernel,
