@@ -145,6 +145,14 @@ class LSTMCell:
         return h, c
 
     def backward(self, dh_next, dc_next):
+        batch_size = dh_next.shape[1]
+
+        # Adjust dh_next and dc_next if their dimensions do not match self.hidden_size
+        if dh_next.shape[0] != self.hidden_size:
+            dh_next = np.resize(dh_next, (self.hidden_size, batch_size))
+        if dc_next.shape[0] != self.hidden_size:
+            dc_next = np.resize(dc_next, (self.hidden_size, batch_size))
+
         do = dh_next * np.tanh(self.c)
         dc = dc_next + dh_next * self.o_gate * (1 - np.tanh(self.c) ** 2)
         di = dc * self.g_gate
@@ -157,15 +165,17 @@ class LSTMCell:
         dg_input = dg * (1 - self.g_gate ** 2)
 
         d_combined = np.vstack((di_input, df_input, do_input, dg_input))
+        assert d_combined.shape == (4 * self.hidden_size, batch_size), f"Expected d_combined shape {(4 * self.hidden_size, batch_size)}, got {d_combined.shape}"
 
         self.grad_weights = np.dot(d_combined, self.input.T)
         self.grad_biases = d_combined.sum(axis=1, keepdims=True)
         d_combined_input = np.dot(self.weights.T, d_combined)
 
         dx = d_combined_input[:self.input_size]
-        dh_prev = d_combined_input[self.input_size:]
+        dh_prev = d_combined_input[self.input_size:self.input_size + self.hidden_size]
+        dc_prev = dc * self.f_gate
 
-        return dx, dh_prev, dc * self.f_gate
+        return dx, dh_prev, dc_prev
 
     @staticmethod
     def sigmoid(x):

@@ -63,27 +63,39 @@ class RNN:
         for i, layer in enumerate(self.layers):
             if isinstance(layer, LSTMCell):
                 h, c = hidden_states[h_c_index]
-                print(f"Layer {i}: LSTM input shape: {x.shape}")
+                # print(f"Layer {i}: LSTM input shape: {x.shape}")
                 h, c = layer.forward(x, h, c)
                 hidden_states[h_c_index] = (h, c)
                 x = h  # Update x to the output h for the next layer
-                print(f"Layer {i}: LSTM output shape: {x.shape}")
+                # print(f"Layer {i}: LSTM output shape: {x.shape}")
                 h_c_index += 1
             else:
-                print(f"Layer {i}: Dense input shape: {x.shape}")
+                # print(f"Layer {i}: Dense input shape: {x.shape}")
                 x = layer.forward(x)
-                print(f"Layer {i}: Dense output shape: {x.shape}")
+                # print(f"Layer {i}: Dense output shape: {x.shape}")
         return x
 
     def backward(self, dh):
         dc = np.zeros_like(dh)
         h_c_index = len([layer for layer in self.layers if isinstance(layer, LSTMCell)]) - 1
-        for layer in reversed(self.layers):
+        for i, layer in reversed(list(enumerate(self.layers))):
             if isinstance(layer, LSTMCell):
+                # print(f"Backward Layer {i}: LSTM dh shape: {dh.shape}, dc shape: {dc.shape}")
+                dh, dc = self.adjust_gradients(dh, dc, layer.hidden_size)
                 dx, dh, dc = layer.backward(dh, dc)
+                # print(f"Backward Layer {i}: LSTM dx shape: {dx.shape}, dh shape: {dh.shape}, dc shape: {dc.shape}")
                 h_c_index -= 1
             else:
+                # print(f"Backward Layer {i}: Dense dh shape: {dh.shape}")
                 dh = layer.backward(dh)
+                # print(f"Backward Layer {i}: Dense dh shape after backward: {dh.shape}")
+
+    def adjust_gradients(self, dh, dc, hidden_size):
+        # Resize gradients to match the hidden size of the next layer in the backward pass
+        if dh.shape[0] != hidden_size:
+            dh = np.resize(dh, (hidden_size, dh.shape[1]))
+            dc = np.resize(dc, (hidden_size, dc.shape[1]))
+        return dh, dc
 
     def update_weights(self):
         for i, layer in enumerate(self.layers):

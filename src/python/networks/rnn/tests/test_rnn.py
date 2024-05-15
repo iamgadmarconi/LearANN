@@ -198,6 +198,7 @@ def test_rnn_with_cuda():
     output = rnn.forward(inputs)
     print("Output after training:", output)
 
+
 def test_rnn_with_cuda_on_sine_wave():
     seq_length = 50
     num_sequences = 1000
@@ -237,14 +238,13 @@ def test_rnn_with_cuda_on_sine_wave():
     # Plot the results
     plot_sine_wave(y_test, predictions)
 
-# def test_rnn_lstm_on_sine_wave():
-#     seq_length = 50
-#     num_sequences = 1000
-#     X, y = generate_sine_wave_data(seq_length, num_sequences)
-#     X_train, y_train = X[:800], y[:800]
-#     X_test, y_test = X[800:], y[800:]
 
-#     # Configure and create RNN
+# def test_rnn_lstm_on_sine_wave():
+#     # Generate sine wave data
+#     X_train = np.sin(np.linspace(0, 2 * np.pi, 100))
+#     y_train = np.roll(X_train, -1)
+
+#     # Define and initialize the model parameters (weights and biases)
 #     layers_config = [
 #         {'input_size': 1, 'output_size': 50, 'type': 'lstm'},
 #         {'input_size': 50, 'output_size': 100, 'type': 'lstm'},
@@ -252,9 +252,8 @@ def test_rnn_with_cuda_on_sine_wave():
 #         {'input_size': 50, 'output_size': 1, 'activation': 'linear', 'type': 'dense'}
 #     ]
 
-#     optimizer_config = {'lr': 0.01}
-
-#     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config, layer_type='lstm')
+#     # Initialize the RNN model with the Adam optimizer
+#     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params={'lr': 0.001}, layer_type='lstm')
 
 #     # Training loop
 #     for epoch in range(100):
@@ -262,39 +261,46 @@ def test_rnn_with_cuda_on_sine_wave():
 #             inputs = X_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (input_size, batch_size)
 #             targets = y_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (output_size, batch_size)
 #             loss = rnn.train(inputs, targets)
+#         if epoch % 10 == 0:
 #             print(f'Epoch {epoch}, Step {i}, Loss: {loss}')
 
-#     # Testing loop
-#     predictions = []
-#     for i in range(len(X_test)):
-#         prediction = rnn.forward(X_test[i].reshape(-1, 1))
-#         predictions.append(prediction.flatten())
-
-#     predictions = np.array(predictions)
-
-#     # Plot the results
-#     plot_sine_wave(y_test, predictions)
 
 def test_rnn_lstm_on_sine_wave():
     # Generate sine wave data
-    X_train = np.sin(np.linspace(0, 2 * np.pi, 100))
-    y_train = np.roll(X_train, -1)
+    seq_length = 50
+    num_sequences = 1000
+    X, y = generate_sine_wave_data(seq_length, num_sequences)
+    X_train, y_train = X[:800], y[:800]
+    X_test, y_test = X[800:], y[800:]
 
-    # Define and initialize the model parameters (weights and biases)
+    # Configure and create RNN
     layers_config = [
-        {'input_size': 1, 'output_size': 50, 'type': 'lstm'},
-        {'input_size': 50, 'output_size': 100, 'type': 'lstm'},
-        {'input_size': 100, 'output_size': 50, 'type': 'lstm'},
-        {'input_size': 50, 'output_size': 1, 'activation': 'linear', 'type': 'dense'}
+        {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
+        {'input_size': 50, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 50, 'activation': 'relu'},
+        {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    # Initialize the RNN model with the Adam optimizer
-    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params={'lr': 0.001}, layer_type='lstm')
+    optimizer_config = {'lr': 0.01}
+
+    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
     # Training loop
     for epoch in range(100):
+        total_loss = 0
         for i in range(len(X_train)):
-            inputs = X_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (input_size, batch_size)
-            targets = y_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (output_size, batch_size)
-            loss = rnn.train(inputs, targets)
-            print(f'Epoch {epoch}, Step {i}, Loss: {loss}')
+            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1))
+            total_loss += loss
+        if epoch % 10 == 0:
+            print(f'Epoch {epoch}, Loss: {total_loss / len(X_train)}')
+
+    # Testing loop
+    predictions = []
+    for i in range(len(X_test)):
+        prediction = rnn.forward(X_test[i].reshape(-1, 1))
+        predictions.append(prediction.flatten())
+
+    predictions = np.array(predictions)
+
+    # Plot the results
+    plot_sine_wave(y_test, predictions)
