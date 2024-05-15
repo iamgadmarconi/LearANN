@@ -221,7 +221,46 @@ def test_rnn_with_cuda_on_sine_wave():
     for epoch in range(100):
         total_loss = 0
         for i in range(len(X_train)):
-            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1))
+            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1), cuda=True)
+            total_loss += loss
+        if epoch % 10 == 0:
+            print(f'Epoch {epoch}, Loss: {total_loss / len(X_train)}')
+
+    # Testing loop
+    predictions = []
+    for i in range(len(X_test)):
+        prediction = rnn.forward(X_test[i].reshape(-1, 1))
+        predictions.append(prediction.flatten())
+
+    predictions = np.array(predictions)
+
+    # Plot the results
+    plot_sine_wave(y_test, predictions)
+
+def test_rnn_lstm_on_sine_wave():
+    seq_length = 50
+    num_sequences = 1000
+    X, y = generate_sine_wave_data(seq_length, num_sequences)
+    X_train, y_train = X[:800], y[:800]
+    X_test, y_test = X[800:], y[800:]
+
+    # Configure and create RNN
+    layers_config = [
+        {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
+        {'input_size': 50, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 50, 'activation': 'relu'},
+        {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
+    ]
+
+    optimizer_config = {'lr': 0.01}
+
+    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config, layer_type='lstm')
+
+    # Training loop
+    for epoch in range(100):
+        total_loss = 0
+        for i in range(len(X_train)):
+            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1), cuda=True)
             total_loss += loss
         if epoch % 10 == 0:
             print(f'Epoch {epoch}, Loss: {total_loss / len(X_train)}')

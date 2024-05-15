@@ -99,3 +99,64 @@ class GPULayer(Layer):
         grad_input = gpu_matrix_vector_mul(self.weights.T, grad_z)
         return grad_input
     
+
+class LSTMCell:
+    def __init__(self, input_size, hidden_size):
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.weights = np.random.randn(4 * hidden_size, input_size + hidden_size).astype(np.float32) * np.sqrt(2. / (input_size + hidden_size))
+        self.biases = np.zeros((4 * hidden_size, 1), dtype=np.float32)
+
+    def forward(self, x, h_prev, c_prev):
+        batch_size = x.shape[1]
+        combined = np.vstack((x, h_prev))  # Shape: (input_size + hidden_size, batch_size)
+
+        # Gates and cell state
+        gates = np.dot(self.weights, combined) + self.biases
+        i_gate = self.sigmoid(gates[:self.hidden_size])
+        f_gate = self.sigmoid(gates[self.hidden_size:self.hidden_size*2])
+        o_gate = self.sigmoid(gates[self.hidden_size*2:self.hidden_size*3])
+        g_gate = np.tanh(gates[self.hidden_size*3:])
+
+        c = f_gate * c_prev + i_gate * g_gate
+        h = o_gate * np.tanh(c)
+
+        # Save values for backward pass
+        self.input = combined
+        self.h_prev = h_prev
+        self.c_prev = c_prev
+        self.i_gate = i_gate
+        self.f_gate = f_gate
+        self.o_gate = o_gate
+        self.g_gate = g_gate
+        self.c = c
+
+        return h, c
+
+    def backward(self, dh_next, dc_next):
+        do = dh_next * np.tanh(self.c)
+        dc = dc_next + dh_next * self.o_gate * (1 - np.tanh(self.c) ** 2)
+        di = dc * self.g_gate
+        dg = dc * self.i_gate
+        df = dc * self.c_prev
+
+        # Gradients for gates
+        di_input = di * self.i_gate * (1 - self.i_gate)
+        df_input = df * self.f_gate * (1 - self.f_gate)
+        do_input = do * self.o_gate * (1 - self.o_gate)
+        dg_input = dg * (1 - self.g_gate ** 2)
+
+        d_combined = np.vstack((di_input, df_input, do_input, dg_input))
+
+        self.grad_weights = np.dot(d_combined, self.input.T)
+        self.grad_biases = d_combined.sum(axis=1, keepdims=True)
+        d_combined_input = np.dot(self.weights.T, d_combined)
+
+        dx = d_combined_input[:self.input_size]
+        dh_prev = d_combined_input[self.input_size:]
+
+        return dx, dh_prev, dc * self.f_gate
+
+    @staticmethod
+    def sigmoid(x):
+        return 1 / (1 + np.exp(-x))
