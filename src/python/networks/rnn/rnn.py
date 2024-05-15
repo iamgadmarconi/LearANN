@@ -4,19 +4,9 @@ from utils.optimizers import Adam, Adagrad, GradientDescent
 from utils.layers import Layer, GPULayer, LSTMCell
 from utils.cuda.cuda import gpu_mse_loss
 
+
 class RNN:
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, **kwargs):
-        """
-        Constructor for the RNN class.
-
-        :param layers_config: List of dictionaries containing the configuration for each layer.
-        :param optimizer_name: Name of the optimizer to use one of ['gradientdescent', 'adagrad', 'adam'].
-        :param optimizer_params: Dictionary containing the parameters for the optimizer. See the optimizer classes for more details.
-        :param kwargs: Additional arguments.
-            :param cuda: Boolean flag to indicate whether to use GPU or not.
-            :param layer_type: Type of layer to use one of ['dense', 'lstm'], defaults to dense.
-        """
-
         layer_type = kwargs.get('layer_type', 'dense').lower()
         use_cuda = kwargs.get('cuda', False)
 

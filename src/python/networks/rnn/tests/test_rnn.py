@@ -260,7 +260,7 @@ def test_rnn_lstm_on_sine_wave():
     for epoch in range(100):
         total_loss = 0
         for i in range(len(X_train)):
-            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1), cuda=True)
+            loss = rnn.train(X_train[i].reshape(-1, 1), y_train[i].reshape(-1, 1))
             total_loss += loss
         if epoch % 10 == 0:
             print(f'Epoch {epoch}, Loss: {total_loss / len(X_train)}')
