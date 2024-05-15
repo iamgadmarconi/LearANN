@@ -109,33 +109,30 @@ class LSTMCell:
 
     def forward(self, x, h_prev, c_prev):
         batch_size = x.shape[1]
-        
-        # Ensure input dimensions are correct
+
         assert x.shape[0] == self.input_size, f"Expected input size {self.input_size}, got {x.shape[0]}"
         assert h_prev.shape == (self.hidden_size, batch_size), f"Expected hidden state shape {(self.hidden_size, batch_size)}, got {h_prev.shape}"
         assert c_prev.shape == (self.hidden_size, batch_size), f"Expected cell state shape {(self.hidden_size, batch_size)}, got {c_prev.shape}"
-        
+
         combined = np.vstack((x, h_prev))  # Shape: (input_size + hidden_size, batch_size)
         assert combined.shape == (self.input_size + self.hidden_size, batch_size), f"Expected combined shape {(self.input_size + self.hidden_size, batch_size)}, got {combined.shape}"
-        
-        # Gates and cell state
+
         gates = np.dot(self.weights, combined) + self.biases
         assert gates.shape == (4 * self.hidden_size, batch_size), f"Expected gates shape {(4 * self.hidden_size, batch_size)}, got {gates.shape}"
-        
+
         i_gate = self.sigmoid(gates[:self.hidden_size])
         f_gate = self.sigmoid(gates[self.hidden_size:self.hidden_size*2])
         o_gate = self.sigmoid(gates[self.hidden_size*2:self.hidden_size*3])
         g_gate = np.tanh(gates[self.hidden_size*3:])
-        
+
         assert i_gate.shape == (self.hidden_size, batch_size), f"Expected i_gate shape {(self.hidden_size, batch_size)}, got {i_gate.shape}"
         assert f_gate.shape == (self.hidden_size, batch_size), f"Expected f_gate shape {(self.hidden_size, batch_size)}, got {f_gate.shape}"
         assert o_gate.shape == (self.hidden_size, batch_size), f"Expected o_gate shape {(self.hidden_size, batch_size)}, got {o_gate.shape}"
         assert g_gate.shape == (self.hidden_size, batch_size), f"Expected g_gate shape {(self.hidden_size, batch_size)}, got {g_gate.shape}"
-        
+
         c = f_gate * c_prev + i_gate * g_gate
         h = o_gate * np.tanh(c)
-        
-        # Save values for backward pass
+
         self.input = combined
         self.h_prev = h_prev
         self.c_prev = c_prev
@@ -154,15 +151,12 @@ class LSTMCell:
         dg = dc * self.i_gate
         df = dc * self.c_prev
 
-        # Gradients for gates
         di_input = di * self.i_gate * (1 - self.i_gate)
         df_input = df * self.f_gate * (1 - self.f_gate)
         do_input = do * self.o_gate * (1 - self.o_gate)
         dg_input = dg * (1 - self.g_gate ** 2)
 
         d_combined = np.vstack((di_input, df_input, do_input, dg_input))
-        
-        assert d_combined.shape == (4 * self.hidden_size, dh_next.shape[1]), f"Expected d_combined shape {(4 * self.hidden_size, dh_next.shape[1])}, got {d_combined.shape}"
 
         self.grad_weights = np.dot(d_combined, self.input.T)
         self.grad_biases = d_combined.sum(axis=1, keepdims=True)

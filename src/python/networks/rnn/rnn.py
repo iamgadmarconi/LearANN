@@ -55,23 +55,33 @@ class RNN:
         return optimizer
 
     def forward(self, x):
-        if isinstance(self.layers[0], LSTMCell):
-            batch_size = x.shape[1]
-            h, c = np.zeros((self.layers[0].hidden_size, batch_size)), np.zeros((self.layers[0].hidden_size, batch_size))
-            for layer in self.layers:
+        batch_size = x.shape[1]
+        hidden_states = [(np.zeros((layer.hidden_size, batch_size)), np.zeros((layer.hidden_size, batch_size))) 
+                        for layer in self.layers if isinstance(layer, LSTMCell)]
+
+        h_c_index = 0
+        for i, layer in enumerate(self.layers):
+            if isinstance(layer, LSTMCell):
+                h, c = hidden_states[h_c_index]
+                print(f"Layer {i}: LSTM input shape: {x.shape}")
                 h, c = layer.forward(x, h, c)
-                x = h  # Ensure x is updated to h for the next layer
-            return h
-        else:
-            for layer in self.layers:
+                hidden_states[h_c_index] = (h, c)
+                x = h  # Update x to the output h for the next layer
+                print(f"Layer {i}: LSTM output shape: {x.shape}")
+                h_c_index += 1
+            else:
+                print(f"Layer {i}: Dense input shape: {x.shape}")
                 x = layer.forward(x)
-            return x
+                print(f"Layer {i}: Dense output shape: {x.shape}")
+        return x
 
     def backward(self, dh):
         dc = np.zeros_like(dh)
+        h_c_index = len([layer for layer in self.layers if isinstance(layer, LSTMCell)]) - 1
         for layer in reversed(self.layers):
             if isinstance(layer, LSTMCell):
                 dx, dh, dc = layer.backward(dh, dc)
+                h_c_index -= 1
             else:
                 dh = layer.backward(dh)
 
