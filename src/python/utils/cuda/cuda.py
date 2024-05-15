@@ -13,7 +13,6 @@ def get_function():
     __global__ void matrixMulKernel(float* A, float* B, float* C, int N) {
         int row = blockIdx.y * blockDim.y + threadIdx.y;
         int col = blockIdx.x * blockDim.x + threadIdx.x;
-
         if (row < N && col < N) {
             float value = 0;
             for (int k = 0; k < N; ++k) {
@@ -22,35 +21,30 @@ def get_function():
             C[row * N + col] = value;
         }
     }
-
     __global__ void dotProductKernel(float* A, float* B, float* C, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             C[idx] = A[idx] * B[idx];
         }
     }
-
     __global__ void reluKernel(float* x, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             y[idx] = max(0.0f, x[idx]);
         }
     }
-
     __global__ void reluGradKernel(float* x, float* grad, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             y[idx] = (x[idx] > 0) ? grad[idx] : 0.0f;
         }
     }
-
     __global__ void sigmoidKernel(float* x, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             y[idx] = 1.0f / (1.0f + expf(-x[idx]));
         }
     }
-
     __global__ void sigmoidGradKernel(float* x, float* grad, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
@@ -58,14 +52,12 @@ def get_function():
             y[idx] = grad[idx] * sigmoid_val * (1 - sigmoid_val);
         }
     }
-
     __global__ void tanhKernel(float* x, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             y[idx] = tanhf(x[idx]);
         }
     }
-
     __global__ void tanhGradKernel(float* x, float* grad, float* y, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
@@ -73,7 +65,6 @@ def get_function():
             y[idx] = grad[idx] * (1 - tanh_val * tanh_val);
         }
     }
-
     __global__ void mseLossKernel(float* pred, float* target, float* loss, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
@@ -81,11 +72,20 @@ def get_function():
             atomicAdd(loss, diff * diff / N);
         }
     }
-
     __global__ void mseGradKernel(float* pred, float* target, float* grad, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {
             grad[idx] = 2 * (pred[idx] - target[idx]) / N;
+        }
+    }
+    __global__ void matrixVectorMulKernel(float* A, float* B, float* C, int rows, int cols) {
+        int row = blockIdx.x * blockDim.x + threadIdx.x;
+        if (row < rows) {
+            float value = 0;
+            for (int j = 0; j < cols; ++j) {
+                value += A[row * cols + j] * B[j];
+            }
+            C[row] = value;
         }
     }
     """)
@@ -99,8 +99,11 @@ def get_function():
     tanh_grad = mod.get_function("tanhGradKernel")
     mse_loss = mod.get_function("mseLossKernel")
     mse_grad = mod.get_function("mseGradKernel")
+    matrixVectorMulKernel = mod.get_function("matrixVectorMulKernel")
+
     return {
         "matrix_mul": matrix_mul,
+        "matrix_vector_mul": matrixVectorMulKernel,
         "dot_product": dot_product,
         "relu": relu,
         "relu_grad": relu_grad,
@@ -282,21 +285,28 @@ def gpu_mse_grad(pred, target, N):
     return grad
 
 
-# Test the GPU matrix multiplication and dot product
-def test_mat_mult():
-    N = 32  # Size of the matrix
-    A = np.random.randn(N, N)
-    B = np.random.randn(N, N)
-    
-    C = gpu_matrix_mul(A, B, N)
-    print("Matrix A:\n", A)
-    print("Matrix B:\n", B)
-    print("Matrix C (A * B):\n", C)
+def gpu_matrix_vector_mul(A, B):
+    rows, cols = A.shape
+    C = np.zeros((rows, B.shape[1]), dtype=np.float32)
 
-    A_vec = np.random.randn(N)
-    B_vec = np.random.randn(N)
-    
-    D = gpu_dot_product(A_vec, B_vec, N)
-    print("Vector A:\n", A_vec)
-    print("Vector B:\n", B_vec)
-    print("Vector D (A . B):\n", D)
+    A = A.astype(np.float32)
+    B = B.astype(np.float32)
+
+    # Allocate memory on the GPU
+    A_gpu = cuda.mem_alloc(A.nbytes)
+    B_gpu = cuda.mem_alloc(B.nbytes)
+    C_gpu = cuda.mem_alloc(C.nbytes)
+
+    # Copy data to the GPU
+    cuda.memcpy_htod(A_gpu, A)
+    cuda.memcpy_htod(B_gpu, B)
+
+    # Define block and grid sizes
+    block_size = (256, 1, 1)
+    grid_size = (rows // block_size[0] + 1, 1, 1)
+    matrix_vector_mul = get_function()["matrix_vector_mul"]
+    matrix_vector_mul(A_gpu, B_gpu, C_gpu, np.int32(rows), np.int32(cols), block=block_size, grid=grid_size)
+
+    # Copy the result back to the host
+    cuda.memcpy_dtoh(C, C_gpu)
+    return C

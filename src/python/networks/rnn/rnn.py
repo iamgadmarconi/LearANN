@@ -1,10 +1,13 @@
 from utils.optimizers import Adam, Adagrad, GradientDescent
-from utils.layers import Layer
+from utils.layers import Layer, GPULayer
 
 class RNN:
 
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, cuda=False):
-        self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
+        if cuda:
+            self.layers = [GPULayer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
+        else:
+            self.layers = [Layer(config['input_size'], config['output_size'], config['activation']) for config in layers_config]
 
         if optimizer_params is None:
             optimizer_params = {'lr': 0.01}

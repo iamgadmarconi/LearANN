@@ -13,6 +13,17 @@ extern "C" {
         }
     }
 
+    __global__ void matrixVectorMulKernel(float* A, float* B, float* C, int rows, int cols) {
+        int row = blockIdx.x * blockDim.x + threadIdx.x;
+        if (row < rows) {
+            float value = 0;
+            for (int j = 0; j < cols; ++j) {
+                value += A[row * cols + j] * B[j];
+            }
+            C[row] = value;
+        }
+    }
+
     __global__ void dotProductKernel(float* A, float* B, float* C, int N) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < N) {

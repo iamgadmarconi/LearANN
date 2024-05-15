@@ -169,3 +169,31 @@ def test_rnn_with_grad_descent():
     # Test forward pass
     output = rnn.forward(inputs)
     print("Output after training:", output)
+
+
+def test_rnn_with_cuda():
+    np.random.seed(42)  # For reproducibility
+
+    layers_config = [
+        {'input_size': 5, 'output_size': 10, 'activation': 'relu'},
+        {'input_size': 10, 'output_size': 100, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 1, 'activation': 'linear'}
+    ]
+
+    optimizer_config = {'lr': 0.01, 'beta1': 0.9, 'beta2': 0.999, 'epsilon': 1e-8}
+
+    rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config, cuda=True)
+    
+    # Example training data
+    inputs = np.random.randn(5, 1)
+    targets = np.random.randn(1, 1)
+    
+    # Training loop
+    for epoch in range(1000):
+        loss = rnn.train(inputs, targets)
+        if epoch % 100 == 0:
+            print(f'Epoch {epoch}, Loss: {loss}')
+
+    # Test forward pass
+    output = rnn.forward(inputs)
+    print("Output after training:", output)
