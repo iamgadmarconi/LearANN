@@ -131,7 +131,7 @@ def test_rnn_with_adagrad():
         {'input_size': 100, 'output_size': 1, 'activation': 'linear'}
     ]
 
-    optimizer_config = {'lr': 0.01, 'epsilon': 1e-8}
+    optimizer_config = {'lr': 0.01, 'epsilon': 1e-4}
 
     rnn = RNN(layers_config, optimizer_name='adagrad', optimizer_params=optimizer_config)
     
@@ -290,7 +290,7 @@ def test_rnn_lstm_on_sine_wave():
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    optimizer_config = {'lr': 1e-7}
+    optimizer_config = {'lr': 1e-4}
 
     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
