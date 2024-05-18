@@ -1,4 +1,5 @@
 import numpy as np
+import numba
 
 
 class Optimizer:
@@ -41,6 +42,7 @@ class Adam(Optimizer):
         return param
     
 
+
 class Adagrad(Optimizer):
 
     def __init__(self, lr, epsilon=1e-8):
@@ -64,6 +66,7 @@ class GradientDescent(Optimizer):
     def __init__(self, lr):
         super().__init__(lr)
 
+    @numba.njit
     def update(self, param, grad_param, name):
         param -= self.learning_rate * grad_param
         return param

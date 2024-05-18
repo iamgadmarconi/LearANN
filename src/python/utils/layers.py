@@ -1,4 +1,5 @@
 import numpy as np
+import numba
 
 
 from utils.cuda.cuda import *
@@ -54,35 +55,43 @@ class Layer:
 
     # Activation functions and their gradients
     @staticmethod
+    @numba.njit
     def relu(z):
         return np.maximum(0, z)
 
     @staticmethod
+    @numba.njit
     def relu_grad(z):
         return (z > 0).astype(float)
 
     @staticmethod
+    @numba.njit
     def sigmoid(z):
         return 1 / (1 + np.exp(-z))
 
     @staticmethod
+    @numba.njit
     def sigmoid_grad(z):
         sig = 1 / (1 + np.exp(-z))
         return sig * (1 - sig)
 
     @staticmethod
+    @numba.njit
     def tanh(z):
         return np.tanh(z)
 
     @staticmethod
+    @numba.njit
     def tanh_grad(z):
         return 1 - np.tanh(z) ** 2
 
     @staticmethod
+    @numba.njit
     def linear(z):
         return z
 
     @staticmethod
+    @numba.njit
     def linear_grad(z):
         return np.ones_like(z)
 
@@ -140,10 +149,10 @@ class LSTMCell(Layer):
         combined = np.vstack((x, h_prev))
         gates = np.dot(self.weights, combined) + self.biases
 
-        i_gate = self.gate_activation(gates[:self.hidden_size])
-        f_gate = self.gate_activation(gates[self.hidden_size:self.hidden_size*2])
-        o_gate = self.gate_activation(gates[self.hidden_size*2:self.hidden_size*3])
-        g_gate = self.activation(gates[self.hidden_size*3:])
+        i_gate = self.sigmoid(gates[:self.hidden_size])
+        f_gate = self.sigmoid(gates[self.hidden_size:self.hidden_size*2])
+        o_gate = self.sigmoid(gates[self.hidden_size*2:self.hidden_size*3])
+        g_gate = self.tanh(gates[self.hidden_size*3:])
 
         c = f_gate * c_prev + i_gate * g_gate
         h = o_gate * self.activation(c)
@@ -179,10 +188,10 @@ class LSTMCell(Layer):
         dg = dc * self.i_gate
         df = dc * self.c_prev
 
-        di_input = di * self.gate_activation_grad(self.i_gate)
-        df_input = df * self.gate_activation_grad(self.f_gate)
-        do_input = do * self.gate_activation_grad(self.o_gate)
-        dg_input = dg * self.activation_grad(self.g_gate)
+        di_input = di * self.sigmoid(self.i_gate)
+        df_input = df * self.sigmoid(self.f_gate)
+        do_input = do * self.tanh(self.o_gate)
+        dg_input = dg * self.sigmoid(self.g_gate)
 
         d_combined = np.vstack((di_input, df_input, do_input, dg_input))
 
