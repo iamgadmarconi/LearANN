@@ -8,6 +8,8 @@ from utils.cuda.cuda import gpu_mse_loss
 class RNN:
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, **kwargs):
         use_cuda = kwargs.get('cuda', False)
+        self._loss_function = kwargs.get('loss_function', 'mse')
+        self._loss = self._init_loss_function()
 
         self.layers = []
 
@@ -97,7 +99,7 @@ class RNN:
     def train(self, inputs, targets, cuda=False):
         if not cuda:
             outputs = self.forward(inputs)
-            loss = ((outputs - targets) ** 2).mean()
+            loss = self._loss(outputs, targets)
             grad_outputs = 2 * (outputs - targets) / outputs.size
             self.backward(grad_outputs)
             self.update_weights()
@@ -112,3 +114,21 @@ class RNN:
         self.backward(grad_outputs)
         self.update_weights()
         return loss
+    
+    def _init_loss_function(self):
+        loss_function = self._loss_function.lower()
+        if loss_function == 'mse':
+            return self.mean_squared_error
+        elif loss_function == 'crossentropy':
+            return self.cross_entropy_loss
+        else:
+            raise ValueError(f"Unsupported loss function: {self._loss_function}")
+        
+
+    @staticmethod
+    def mean_squared_error(outputs, targets):
+        return ((outputs - targets) ** 2).mean()
+    
+    @staticmethod
+    def cross_entropy_loss(outputs, targets):
+        return -np.sum(targets * np.log(outputs)) / outputs.shape[1]
