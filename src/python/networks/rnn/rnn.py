@@ -1,6 +1,7 @@
 import numpy as np
 
-from utils.optimizers import Adam, Adagrad, GradientDescent
+from utils.optimizers.optimizers import Adagrad, GradientDescent
+from utils.optimizers.adam import Adam
 from utils.layers import Layer, GPULayer, LSTMCell
 from utils.cuda.cuda import gpu_mse_loss
 
@@ -9,7 +10,7 @@ class RNN:
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, **kwargs):
         use_cuda = kwargs.get('cuda', False)
         self._loss_function = kwargs.get('loss_function', 'mse')
-        self._loss = self._init_loss_function()
+        self._loss, self._loss_grad = self._init_loss_functions()
 
         self.layers = []
 
@@ -100,7 +101,7 @@ class RNN:
         if not cuda:
             outputs = self.forward(inputs)
             loss = self._loss(outputs, targets)
-            grad_outputs = 2 * (outputs - targets) / outputs.size
+            grad_outputs = self._loss_grad(outputs, targets)
             self.backward(grad_outputs)
             self.update_weights()
             return loss
@@ -115,12 +116,12 @@ class RNN:
         self.update_weights()
         return loss
     
-    def _init_loss_function(self):
+    def _init_loss_functions(self):
         loss_function = self._loss_function.lower()
         if loss_function == 'mse':
-            return self.mean_squared_error
+            return self.mean_squared_error, self.mse_grad
         elif loss_function == 'crossentropy':
-            return self.cross_entropy_loss
+            return self.cross_entropy_loss, self.cross_entropy_grad
         else:
             raise ValueError(f"Unsupported loss function: {self._loss_function}")
 
@@ -129,8 +130,16 @@ class RNN:
         return ((outputs - targets) ** 2).mean()
     
     @staticmethod
+    def mse_grad(outputs, targets):
+        return 2 * (outputs - targets) / outputs.size
+    
+    @staticmethod
     def cross_entropy_loss(outputs, targets):
         return -np.sum(targets * np.log(outputs)) / outputs.shape[1]
+    
+    @staticmethod
+    def cross_entropy_grad(outputs, targets):
+        return outputs - targets
 
     def predict(self, x):
         predictions = []

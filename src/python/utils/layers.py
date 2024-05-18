@@ -10,6 +10,7 @@ class Layer:
         self.input_size = input_size
         self.output_size = output_size
         self.weights = np.random.randn(output_size, input_size) * np.sqrt(2. / input_size)
+        self.weight = self.weights.astype(np.float32)
         self.biases = np.zeros((output_size, 1), dtype=np.float32)
         
         # Predefine activation and gradient functions
@@ -62,7 +63,7 @@ class Layer:
     @staticmethod
     @numba.njit
     def relu_grad(z):
-        return (z > 0).astype(float)
+        return np.where(z > 0, 1.0, 0.0)
 
     @staticmethod
     @numba.njit
@@ -125,6 +126,7 @@ class LSTMCell(Layer):
         super().__init__(input_size, hidden_size, activation)
         self.hidden_size = hidden_size
         self.weights = np.random.randn(4 * hidden_size, input_size + hidden_size).astype(np.float32) * np.sqrt(2. / (input_size + hidden_size))
+        self.weight = self.weights.astype(np.float32)
         self.biases = np.zeros((4 * hidden_size, 1), dtype=np.float32)
         self._init_gate_activations(gate_activation)
 

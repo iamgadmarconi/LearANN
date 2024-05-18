@@ -54,6 +54,12 @@ def test_rnn_on_sine_wave():
     X_train, y_train = X[:800], y[:800]
     X_test, y_test = X[800:], y[800:]
 
+    # Convert data to float32
+    X_train = X_train.astype(np.float32)
+    y_train = y_train.astype(np.float32)
+    X_test = X_test.astype(np.float32)
+    y_test = y_test.astype(np.float32)
+
     # Configure and create RNN
     layers_config = [
         {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
