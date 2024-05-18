@@ -5,12 +5,12 @@ import numpy as np
 # @numba.njit
 def _update_adam(param, grad_param, m, v, t, lr, beta1, beta2, epsilon, idx):
     grad_param = grad_param.astype(np.float32)
+    t += 1
     m[idx] = beta1 * m[idx] + (1 - beta1) * grad_param
     v[idx] = beta2 * v[idx] + (1 - beta2) * (grad_param ** 2)
     m_hat = m[idx] / (1 - beta1 ** t)
     v_hat = v[idx] / (1 - beta2 ** t)
     param -= lr * m_hat / (np.sqrt(v_hat) + epsilon)
-    t += 1
     return param, t
 
 

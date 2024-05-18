@@ -1,3 +1,4 @@
+import numba
 import numpy as np
 
 from utils.optimizers.optimizers import Adagrad, GradientDescent
@@ -10,7 +11,10 @@ class RNN:
     def __init__(self, layers_config, optimizer_name='adam', optimizer_params=None, **kwargs):
         use_cuda = kwargs.get('cuda', False)
         self._loss_function = kwargs.get('loss_function', 'mse')
-        self._loss, self._loss_grad = self._init_loss_functions()
+
+        loss_functions = self._init_loss_functions()
+        self._loss = loss_functions[0]
+        self._loss_grad = loss_functions[1]
 
         self.layers = []
 
@@ -126,18 +130,22 @@ class RNN:
             raise ValueError(f"Unsupported loss function: {self._loss_function}")
 
     @staticmethod
+    @numba.njit
     def mean_squared_error(outputs, targets):
         return ((outputs - targets) ** 2).mean()
     
     @staticmethod
+    @numba.njit
     def mse_grad(outputs, targets):
         return 2 * (outputs - targets) / outputs.size
     
     @staticmethod
+    @numba.njit
     def cross_entropy_loss(outputs, targets):
         return -np.sum(targets * np.log(outputs)) / outputs.shape[1]
     
     @staticmethod
+    @numba.njit
     def cross_entropy_grad(outputs, targets):
         return outputs - targets
 
