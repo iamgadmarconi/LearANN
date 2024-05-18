@@ -123,7 +123,6 @@ class RNN:
             return self.cross_entropy_loss
         else:
             raise ValueError(f"Unsupported loss function: {self._loss_function}")
-        
 
     @staticmethod
     def mean_squared_error(outputs, targets):
@@ -132,3 +131,11 @@ class RNN:
     @staticmethod
     def cross_entropy_loss(outputs, targets):
         return -np.sum(targets * np.log(outputs)) / outputs.shape[1]
+
+    def predict(self, x):
+        predictions = []
+        for i in range(len(x)):
+            prediction = self.forward(x[i].reshape(-1, 1))
+            predictions.append(prediction.flatten())
+
+        return np.array(predictions)
