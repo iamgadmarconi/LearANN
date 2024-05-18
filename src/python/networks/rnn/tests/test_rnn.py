@@ -278,11 +278,13 @@ def test_rnn_lstm_on_sine_wave():
     layers_config = [
         {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
         {'input_size': 50, 'output_size': 100, 'activation': 'relu', 'type': 'lstm', 'grad_activation': 'tanh'},
+        {'input_size': 100, 'output_size': 200, 'activation': 'tanh', 'type': 'lstm', 'grad_activation': 'tanh'},
+        {'input_size': 200, 'output_size': 100, 'activation': 'tanh', 'type': 'lstm', 'grad_activation': 'tanh'},
         {'input_size': 100, 'output_size': 50, 'activation': 'relu', 'type': 'lstm'},
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    optimizer_config = {'lr': 0.01}
+    optimizer_config = {'lr': 0.001}
 
     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
