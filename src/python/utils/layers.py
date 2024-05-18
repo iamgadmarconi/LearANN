@@ -1,7 +1,6 @@
 import numpy as np
 import numba
 
-
 from utils.cuda.cuda import *
 
 

@@ -69,7 +69,7 @@ def test_rnn_on_sine_wave():
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    optimizer_config = {'lr': 0.00001}
+    optimizer_config = {'lr': 1e-8}
 
     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
@@ -290,7 +290,7 @@ def test_rnn_lstm_on_sine_wave():
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    optimizer_config = {'lr': 0.005}
+    optimizer_config = {'lr': 1e-7}
 
     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 
