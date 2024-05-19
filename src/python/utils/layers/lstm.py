@@ -1,7 +1,31 @@
 import numpy as np
+import numba
+from numba import jit
+from numba.experimental import jitclass
 
 from utils.layers.dense import Layer
 
+
+spec_lstm = [
+    ('hidden_size', numba.int32),
+    ('weights', numba.float32[:, :]),
+    ('weight', numba.float32[:, :]),
+    ('biases', numba.float32[:, :]),
+    ('gate_activation', numba.types.FunctionType(numba.float32(numba.float32)), numba.types.FunctionType(numba.float32(numba.float32))),
+    ('i_gate', numba.float32[:]),
+    ('f_gate', numba.float32[:]),
+    ('o_gate', numba.float32[:]),
+    ('g_gate', numba.float32[:]),
+    ('c', numba.float32[:]),
+    ('input', numba.float32[:, :]),
+    ('h_prev', numba.float32[:, :]),
+    ('c_prev', numba.float32[:, :]),
+    ('grad_weights', numba.float32[:, :]),
+    ('grad_biases', numba.float32[:, :])
+]
+
+
+# @jitclass(spec_lstm)
 class LSTMCell(Layer):
     def __init__(self, input_size, hidden_size, activation='relu', gate_activation='sigmoid'):
         super().__init__(input_size, hidden_size, activation)

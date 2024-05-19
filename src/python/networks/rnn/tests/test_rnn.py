@@ -82,13 +82,7 @@ def test_rnn_on_sine_wave():
         if epoch % 10 == 0:
             print(f'Epoch {epoch}, Loss: {total_loss / len(X_train)}')
 
-    # Testing loop
-    predictions = []
-    for i in range(len(X_test)):
-        prediction = rnn.forward(X_test[i].reshape(-1, 1))
-        predictions.append(prediction.flatten())
-
-    predictions = np.array(predictions)
+    predictions = rnn.predict(X_test)
 
     # Plot the results
     plot_sine_wave(y_test, predictions)
