@@ -1,5 +1,5 @@
 import numpy as np
-import numba
+from numba import jit
 
 from utils.cuda.cuda import *
 
@@ -11,8 +11,7 @@ class Layer:
         self.weights = np.random.randn(output_size, input_size) * np.sqrt(2. / input_size)
         self.weight = self.weights.astype(np.float32)
         self.biases = np.zeros((output_size, 1), dtype=np.float32)
-        
-        # Predefine activation and gradient functions
+
         self._init_activation(activation)
 
     def _init_activation(self, activation):
@@ -37,61 +36,55 @@ class Layer:
         return self.activation(self.z)
 
     def backward(self, grad_output):
-        # Ensure grad_output is 2D for matrix operations
         if grad_output.ndim == 1:
             grad_output = grad_output.reshape(-1, 1)
 
-        # Calculate the gradient of the activation function
         grad_z = grad_output * self.activation_grad(self.z)
 
-        # Calculate gradients for weights and biases
         self.grad_weights = np.dot(grad_z, self.input.T)
         self.grad_biases = grad_z.sum(axis=1, keepdims=True)
 
-        # Propagate the gradient backwards
         grad_input = np.dot(self.weights.T, grad_z)
         return grad_input
 
-
-    # Activation functions and their gradients
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def relu(z):
         return np.maximum(0, z)
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def relu_grad(z):
         return np.where(z > 0, 1.0, 0.0)
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def sigmoid(z):
         return 1 / (1 + np.exp(-z))
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def sigmoid_grad(z):
         sig = 1 / (1 + np.exp(-z))
         return sig * (1 - sig)
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def tanh(z):
         return np.tanh(z)
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def tanh_grad(z):
         return 1 - np.tanh(z) ** 2
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def linear(z):
         return z
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True)
     def linear_grad(z):
         return np.ones_like(z)
 
