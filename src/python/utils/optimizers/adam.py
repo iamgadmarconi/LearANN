@@ -2,7 +2,7 @@ import numba
 import numpy as np
 
 
-# @numba.njit
+@numba.jit(nopython=True, fastmath=True)
 def _update_adam(param, grad_param, m, v, t, lr, beta1, beta2, epsilon, idx):
     grad_param = grad_param.astype(np.float32)
     t += 1

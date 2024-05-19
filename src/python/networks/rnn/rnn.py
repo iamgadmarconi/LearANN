@@ -1,9 +1,11 @@
 import numba
 import numpy as np
 
-from utils.optimizers.optimizers import Adagrad, GradientDescent
+from utils.optimizers.adagrad import Adagrad
+from utils.optimizers.gradient_descent import GradientDescent
 from utils.optimizers.adam import Adam
-from utils.layers import Layer, GPULayer, LSTMCell
+from utils.layers.dense import Layer, GPULayer
+from utils.layers.lstm import LSTMCell
 from utils.cuda.cuda import gpu_mse_loss
 
 
