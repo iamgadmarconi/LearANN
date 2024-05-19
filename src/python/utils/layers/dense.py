@@ -48,43 +48,43 @@ class Layer:
         return grad_input
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def relu(z):
         return np.maximum(0, z)
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def relu_grad(z):
         return np.where(z > 0, 1.0, 0.0)
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def sigmoid(z):
         return 1 / (1 + np.exp(-z))
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def sigmoid_grad(z):
         sig = 1 / (1 + np.exp(-z))
         return sig * (1 - sig)
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def tanh(z):
         return np.tanh(z)
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def tanh_grad(z):
         return 1 - np.tanh(z) ** 2
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def linear(z):
         return z
 
     @staticmethod
-    @jit(nopython=True, fastmath=True)
+    @jit(nopython=True, fastmath=True, cache=True)
     def linear_grad(z):
         return np.ones_like(z)
 

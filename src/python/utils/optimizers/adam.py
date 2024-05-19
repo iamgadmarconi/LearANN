@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 
-@jit(nopython=True, fastmath=True)
+@jit(nopython=True, fastmath=True, cache=True)
 def _update_adam(param, grad_param, m, v, t, lr, beta1, beta2, epsilon, idx):
     t += 1
     m_new = beta1 * m + (1 - beta1) * grad_param

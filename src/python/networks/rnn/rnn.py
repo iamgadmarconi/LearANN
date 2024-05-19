@@ -1,4 +1,4 @@
-import numba
+from numba import jit
 import numpy as np
 
 from utils.optimizers.adagrad import Adagrad
@@ -132,25 +132,26 @@ class RNN:
             raise ValueError(f"Unsupported loss function: {self._loss_function}")
 
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True, cache=True)
     def mean_squared_error(outputs, targets):
         return ((outputs - targets) ** 2).mean()
     
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True, cache=True)
     def mse_grad(outputs, targets):
         return 2 * (outputs - targets) / outputs.size
     
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True, cache=True)
     def cross_entropy_loss(outputs, targets):
         return -np.sum(targets * np.log(outputs)) / outputs.shape[1]
     
     @staticmethod
-    @numba.njit
+    @jit(nopython=True, fastmath=True, cache=True)
     def cross_entropy_grad(outputs, targets):
         return outputs - targets
 
+    @jit(nopython=True, fastmath=True, cache=True, parallel=True)
     def predict(self, x):
         predictions = []
         for i in range(len(x)):
