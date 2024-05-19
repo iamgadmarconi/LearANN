@@ -55,18 +55,24 @@ impl DenseLayer {
             Activation::ReLU => z.mapv(|v| if v > 0.0 { 1.0 } else { 0.0 }),
             Activation::Sigmoid => {
                 let sig = z.mapv(|v| 1.0 / (1.0 + (-v).exp()));
-                sig * (1.0 - sig)
+                sig.clone() * (1.0 - sig)
             }
             Activation::Tanh => z.mapv(|v| 1.0 - v.tanh().powi(2)),
             Activation::Linear => Array2::ones(z.raw_dim()),
         }
     }
+
+    pub fn input_size(&self) -> usize {
+        self.input_size
+    }
+
+    pub fn output_size(&self) -> usize {
+        self.output_size
+    }
+
 }
 
 impl Layer for DenseLayer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 
     fn forward(&mut self, x: &Array2<f64>) -> Array2<f64> {
         let x = if x.ndim() == 1 {
@@ -109,6 +115,14 @@ impl Layer for DenseLayer {
 
     fn output_size(&self) -> usize {
         self.output_size
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

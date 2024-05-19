@@ -74,18 +74,18 @@ impl LSTMCell {
         let mut dc_next = dc_next.clone();
     
         if dh_next.nrows() != self.hidden_size {
-            dh_next = dh_next.into_shape((self.hidden_size, dh_next.ncols())).unwrap();
+            dh_next = dh_next.clone().into_shape((self.hidden_size, dh_next.ncols())).unwrap();
         }
         if dc_next.nrows() != self.hidden_size {
-            dc_next = dc_next.into_shape((self.hidden_size, dc_next.ncols())).unwrap();
+            dc_next = dc_next.clone().into_shape((self.hidden_size, dc_next.ncols())).unwrap();
         }
     
-        let do_gate = dh_next * self.c.as_ref().unwrap().mapv(|v| v.tanh()) * self.o_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
-        let dc = dc_next + dh_next * self.o_gate.as_ref().unwrap() * self.c.as_ref().unwrap().mapv(|v| 1.0 - v.tanh().powi(2));
+        let do_gate = dh_next.clone() * self.c.as_ref().unwrap().mapv(|v| v.tanh()) * self.o_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
+        let dc = dc_next + dh_next.clone() * self.o_gate.as_ref().unwrap() * self.c.as_ref().unwrap().mapv(|v| 1.0 - v.tanh().powi(2));
     
         let di_gate = dc.clone() * self.g_gate.as_ref().unwrap() * self.i_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
         let df_gate = dc.clone() * self.c_prev.as_ref().unwrap() * self.f_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
-        let dg_gate = dc * self.i_gate.as_ref().unwrap() * self.g_gate.as_ref().unwrap().mapv(|v| 1.0 - v.powi(2));
+        let dg_gate = dc.clone() * self.i_gate.as_ref().unwrap() * self.g_gate.as_ref().unwrap().mapv(|v| 1.0 - v.powi(2));
     
         let d_combined = stack![
             Axis(0),
@@ -105,6 +105,14 @@ impl LSTMCell {
         let dc_prev = dc * self.f_gate.as_ref().unwrap();
     
         (dx, dh_prev, dc_prev)
+    }
+
+    pub fn hidden_size(&self) -> usize {
+        self.hidden_size
+    }
+
+    pub fn input_size(&self) -> usize {
+        self.input_size
     }    
 }
 
@@ -136,5 +144,9 @@ impl Layer for LSTMCell {
 
     fn output_size(&self) -> usize {
         self.hidden_size
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
