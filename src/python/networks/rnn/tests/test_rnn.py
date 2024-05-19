@@ -246,32 +246,6 @@ def test_rnn_with_cuda_on_sine_wave():
     plot_sine_wave(y_test, predictions)
 
 
-# def test_rnn_lstm_on_sine_wave():
-#     # Generate sine wave data
-#     X_train = np.sin(np.linspace(0, 2 * np.pi, 100))
-#     y_train = np.roll(X_train, -1)
-
-#     # Define and initialize the model parameters (weights and biases)
-#     layers_config = [
-#         {'input_size': 1, 'output_size': 50, 'type': 'lstm'},
-#         {'input_size': 50, 'output_size': 100, 'type': 'lstm'},
-#         {'input_size': 100, 'output_size': 50, 'type': 'lstm'},
-#         {'input_size': 50, 'output_size': 1, 'activation': 'linear', 'type': 'dense'}
-#     ]
-
-#     # Initialize the RNN model with the Adam optimizer
-#     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params={'lr': 0.001}, layer_type='lstm')
-
-#     # Training loop
-#     for epoch in range(100):
-#         for i in range(len(X_train)):
-#             inputs = X_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (input_size, batch_size)
-#             targets = y_train[i].reshape(1, 1).astype(np.float32)  # Reshape to (output_size, batch_size)
-#             loss = rnn.train(inputs, targets)
-#         if epoch % 10 == 0:
-#             print(f'Epoch {epoch}, Step {i}, Loss: {loss}')
-
-
 def test_rnn_lstm_on_sine_wave():
     # Generate sine wave data
     seq_length = 50
@@ -283,10 +257,10 @@ def test_rnn_lstm_on_sine_wave():
     # Configure and create RNN
     layers_config = [
         {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
-        {'input_size': 50, 'output_size': 100, 'activation': 'relu', 'type': 'lstm', 'grad_activation': 'tanh'},
-        {'input_size': 100, 'output_size': 200, 'activation': 'tanh', 'type': 'lstm', 'grad_activation': 'tanh'},
-        {'input_size': 200, 'output_size': 100, 'activation': 'tanh', 'type': 'lstm', 'grad_activation': 'tanh'},
-        {'input_size': 100, 'output_size': 50, 'activation': 'relu', 'type': 'lstm'},
+        {'input_size': 50, 'output_size': 100, 'type': 'lstm'},
+        {'input_size': 100, 'output_size': 200, 'type': 'lstm'},
+        {'input_size': 200, 'output_size': 100, 'type': 'lstm'},
+        {'input_size': 100, 'output_size': 50, 'type': 'lstm'},
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 

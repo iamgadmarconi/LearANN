@@ -1,15 +1,6 @@
 import numpy as np
-import numba
-from numba.experimental import jitclass
-from numba.typed import Dict
-
-spec = [
-    ('lr', numba.float32),
-    ('_initialized', numba.boolean)
-]
 
 
-# @jitclass(spec=spec)
 class Optimizer:
     def __init__(self, lr):
         self.learning_rate = lr
