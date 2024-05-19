@@ -64,12 +64,12 @@ def test_rnn_on_sine_wave():
     layers_config = [
         {'input_size': seq_length, 'output_size': 50, 'activation': 'tanh'},
         {'input_size': 50, 'output_size': 100, 'activation': 'relu'},
-        {'input_size': 100, 'output_size': 50, 'activation': 'relu'},
+        {'input_size': 100, 'output_size': 50, 'activation': 'tanh'},
         {'input_size': 50, 'output_size': 50, 'activation': 'relu'},
         {'input_size': 50, 'output_size': seq_length, 'activation': 'tanh'}
     ]
 
-    optimizer_config = {'lr': 1e-8}
+    optimizer_config = {'lr': 1e-4}
 
     rnn = RNN(layers_config, optimizer_name='adam', optimizer_params=optimizer_config)
 

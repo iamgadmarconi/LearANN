@@ -151,11 +151,15 @@ class RNN:
     def cross_entropy_grad(outputs, targets):
         return outputs - targets
 
-    @jit(nopython=True, fastmath=True, cache=True, parallel=True)
     def predict(self, x):
-        predictions = []
-        for i in range(len(x)):
-            prediction = self.forward(x[i].reshape(-1, 1))
-            predictions.append(prediction.flatten())
+        return _predict(self.forward, x)
 
-        return np.array(predictions)
+
+@jit(nopython=True, fastmath=True, cache=True, parallel=True)
+def _predict(forward_method, x):
+    predictions = []
+    for i in range(len(x)):
+        prediction = forward_method(x[i].reshape(-1, 1))
+        predictions.append(prediction.flatten())
+
+    return np.array(predictions)
