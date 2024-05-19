@@ -1,4 +1,4 @@
-use ndarray::prelude::*;
+use ndarray::{Array1, Array2, Axis, stack};
 use std::collections::HashMap;
 
 use crate::layers::{Layer, dense::DenseLayer, lstm::LSTMCell};
@@ -48,7 +48,11 @@ impl RNN {
             default_params
         });
 
-        let optimizer = RNN::create_optimizer(optimizer_name, &optimizer_params);
+        let mut optimizer = RNN::create_optimizer(optimizer_name, &optimizer_params);
+
+        // Collect parameter shapes
+        let param_shapes = collect_param_shapes(&layers);
+        optimizer.initialize_parameters(&param_shapes);
 
         RNN {
             layers,
@@ -62,7 +66,6 @@ impl RNN {
             "gradientdescent" => Box::new(GradientDescent::new(params)),
             "adam" => {
                 let mut optimizer = Adam::new(params);
-                optimizer.initialize_parameters();
                 Box::new(optimizer)
             }
             _ => panic!("Unsupported optimizer: {}", name),
@@ -108,7 +111,7 @@ impl RNN {
                 dc = new_dc;
             } else {
                 if dh.nrows() != layer.output_size() {
-                    dh = dh.resize((layer.output_size(), dh.ncols()), 0.0);
+                    dh = dh.into_shape((layer.output_size(), dh.ncols())).unwrap();
                 }
                 dh = layer.backward(&dh);
             }
@@ -201,4 +204,21 @@ pub fn cross_entropy_grad(outputs: Array2<f64>, targets: Array2<f64>) -> Array2<
 
 pub fn gpu_mse_loss(outputs: Array2<f64>, targets: Array2<f64>) -> f64 {
     mean_squared_error(outputs, targets) // Placeholder for actual GPU implementation
+}
+
+fn collect_param_shapes(layers: &Vec<Box<dyn Layer>>) -> HashMap<String, (usize, usize)> {
+    let mut param_shapes = HashMap::new();
+
+    for (i, layer) in layers.iter().enumerate() {
+        let layer_name = format!("layer_{}", i);
+        if let Some(dense_layer) = layer.as_any().downcast_ref::<DenseLayer>() {
+            param_shapes.insert(format!("{}_weights", layer_name), (dense_layer.output_size, dense_layer.input_size));
+            param_shapes.insert(format!("{}_biases", layer_name), (dense_layer.output_size, 1));
+        } else if let Some(lstm_layer) = layer.as_any().downcast_ref::<LSTMCell>() {
+            param_shapes.insert(format!("{}_weights", layer_name), (4 * lstm_layer.hidden_size, lstm_layer.input_size + lstm_layer.hidden_size));
+            param_shapes.insert(format!("{}_biases", layer_name), (4 * lstm_layer.hidden_size, 1));
+        }
+    }
+
+    param_shapes
 }

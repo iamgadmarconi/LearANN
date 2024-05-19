@@ -58,10 +58,10 @@ impl Adam {
         let m = self.m.get_mut(name).unwrap();
         let v = self.v.get_mut(name).unwrap();
 
-        *m = self.beta1 * m + (1.0 - self.beta1) * &grad_param;
-        *v = self.beta2 * v + (1.0 - self.beta2) * grad_param.mapv(|g| g * g);
+        *m = self.beta1 * &*m + (1.0 - self.beta1) * &grad_param;
+        *v = self.beta2 * &*v + (1.0 - self.beta2) * grad_param.mapv(|g| g * g);
 
-        let m_hat = m / (1.0 - self.beta1.powi(self.t as i32));
+        let m_hat = &*m / (1.0 - self.beta1.powi(self.t as i32));
         let v_hat = v.mapv(|v| v.sqrt()) / (1.0 - self.beta2.powi(self.t as i32));
 
         param -= &(self.learning_rate * &m_hat / (v_hat + self.epsilon));
@@ -70,6 +70,10 @@ impl Adam {
 }
 
 impl Optimizer for Adam {
+    fn initialize_parameters(&mut self, param_shapes: &HashMap<String, (usize, usize)>) {
+        self.initialize_parameters(param_shapes)
+    }
+
     fn update(&mut self, param: &Array2<f64>, grad: &Array2<f64>, param_name: &str) -> Array2<f64> {
         self.update(param, grad, param_name)
     }

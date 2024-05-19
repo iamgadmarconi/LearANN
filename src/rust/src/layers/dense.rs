@@ -69,26 +69,30 @@ impl Layer for DenseLayer {
     }
 
     fn forward(&mut self, x: &Array2<f64>) -> Array2<f64> {
-        let x = if x.ndim() == 1 { x.clone().insert_axis(Axis(1)) } else { x.clone() };
+        let x = if x.ndim() == 1 {
+            x.clone().insert_axis(Axis(1)).into_dimensionality::<Ix2>().unwrap()
+        } else {
+            x.clone()
+        };
         self.input = Some(x.clone());
         self.z = Some(self.weights.dot(&x) + &self.biases);
         self.activation(&self.z.as_ref().unwrap())
-    }
+    }    
 
     fn backward(&mut self, grad_output: &Array2<f64>) -> Array2<f64> {
         let grad_output = if grad_output.ndim() == 1 {
-            grad_output.clone().insert_axis(Axis(1))
+            grad_output.clone().insert_axis(Axis(1)).into_dimensionality::<Ix2>().unwrap()
         } else {
             grad_output.clone()
         };
-
+    
         let grad_z = grad_output * self.activation_grad(&self.z.as_ref().unwrap());
-
+    
         self.grad_weights = Some(grad_z.dot(&self.input.as_ref().unwrap().t()));
         self.grad_biases = Some(grad_z.sum_axis(Axis(1)).insert_axis(Axis(1)));
-
+    
         self.weights.t().dot(&grad_z)
-    }
+    }    
 
     fn update_weights(&mut self, optimizer: &mut dyn crate::optimizer::Optimizer, layer_index: usize) {
         self.weights = optimizer.update(

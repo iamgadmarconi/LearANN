@@ -15,6 +15,10 @@ impl GradientDescent {
 }
 
 impl Optimizer for GradientDescent {
+    fn initialize_parameters(&mut self, _param_shapes: &HashMap<String, (usize, usize)>) {
+        // GradientDescent does not need to initialize parameters
+    }
+
     fn update(&mut self, param: &Array2<f64>, grad: &Array2<f64>, _param_name: &str) -> Array2<f64> {
         param - &(self.lr * grad)
     }
