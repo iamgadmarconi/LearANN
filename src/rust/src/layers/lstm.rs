@@ -1,4 +1,4 @@
-use ndarray::{Array2, Axis, concatenate, stack, s};
+use ndarray::{Array2, Axis, concatenate, stack, s, arr2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::any::Any;
@@ -45,6 +45,22 @@ impl LSTMCell {
         }
     }
 
+    fn resize_array2(arr: &Array2<f64>, new_shape: (usize, usize)) -> Array2<f64> {
+        let total_elements = arr.len();
+        let mut resized_vec = Vec::with_capacity(new_shape.0 * new_shape.1);
+
+        for i in 0..new_shape.0 {
+            for j in 0..new_shape.1 {
+                let index = (i * new_shape.1 + j) % total_elements;
+                let row = index / arr.ncols();
+                let col = index % arr.ncols();
+                resized_vec.push(arr[[row, col]]);
+            }
+        }
+
+        Array2::from_shape_vec(new_shape, resized_vec).unwrap()
+    }
+
     pub fn forward(&mut self, x: &Array2<f64>, h_prev: &Array2<f64>, c_prev: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
         let combined = concatenate![Axis(0), h_prev.view(), x.view()];
         let gates = self.weights.dot(&combined) + &self.biases;
@@ -70,23 +86,25 @@ impl LSTMCell {
     }
 
     pub fn backward(&mut self, dh_next: &Array2<f64>, dc_next: &Array2<f64>) -> (Array2<f64>, Array2<f64>, Array2<f64>) {
+        let batch_size = dh_next.ncols();
         let mut dh_next = dh_next.clone();
         let mut dc_next = dc_next.clone();
-    
+
+        // Adjust dh_next and dc_next if their dimensions do not match self.hidden_size
         if dh_next.nrows() != self.hidden_size {
-            dh_next = dh_next.clone().into_shape((self.hidden_size, dh_next.ncols())).unwrap();
+            dh_next = Self::resize_array2(&dh_next, (self.hidden_size, batch_size));
         }
         if dc_next.nrows() != self.hidden_size {
-            dc_next = dc_next.clone().into_shape((self.hidden_size, dc_next.ncols())).unwrap();
+            dc_next = Self::resize_array2(&dc_next, (self.hidden_size, batch_size));
         }
-    
+
         let do_gate = dh_next.clone() * self.c.as_ref().unwrap().mapv(|v| v.tanh()) * self.o_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
         let dc = dc_next + dh_next.clone() * self.o_gate.as_ref().unwrap() * self.c.as_ref().unwrap().mapv(|v| 1.0 - v.tanh().powi(2));
-    
+
         let di_gate = dc.clone() * self.g_gate.as_ref().unwrap() * self.i_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
         let df_gate = dc.clone() * self.c_prev.as_ref().unwrap() * self.f_gate.as_ref().unwrap().mapv(|v| v * (1.0 - v));
         let dg_gate = dc.clone() * self.i_gate.as_ref().unwrap() * self.g_gate.as_ref().unwrap().mapv(|v| 1.0 - v.powi(2));
-    
+
         let d_combined = stack![
             Axis(0),
             di_gate,
@@ -94,16 +112,16 @@ impl LSTMCell {
             do_gate,
             dg_gate
         ];
-    
-        let d_combined = d_combined.into_shape((4 * self.hidden_size, dh_next.ncols())).unwrap();
+
+        let d_combined = d_combined.into_shape((4 * self.hidden_size, batch_size)).unwrap();
         self.grad_weights = Some(d_combined.dot(&self.input.as_ref().unwrap().t()));
         self.grad_biases = Some(d_combined.sum_axis(Axis(1)).insert_axis(Axis(1)));
-    
+
         let d_combined_input = self.weights.t().dot(&d_combined);
         let dx = d_combined_input.slice(s![self.hidden_size.., ..]).to_owned();
         let dh_prev = d_combined_input.slice(s![..self.hidden_size, ..]).to_owned();
         let dc_prev = dc * self.f_gate.as_ref().unwrap();
-    
+
         (dx, dh_prev, dc_prev)
     }
 
