@@ -1,0 +1,4 @@
+[dependencies]
+ndarray = "0.15"
+ndarray-rand = "0.14"
+rand = "0.8"
