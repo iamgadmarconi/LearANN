@@ -1,4 +1,4 @@
-use ndarray::{Array2, Axis, concatenate, stack, s, Ix2};
+use ndarray::{Array2, Axis, concatenate, stack, s};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::any::Any;

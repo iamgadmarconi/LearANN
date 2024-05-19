@@ -2,8 +2,8 @@ mod layers;
 mod optimizer;
 mod rnn;
 
-use layers::{dense::DenseLayer, lstm::LSTMCell, Layer};
-use optimizer::{adam::Adam, gradient_descent::GradientDescent, Optimizer};
+
+
 use rnn::{RNN, LayerConfig};
 use ndarray::prelude::*;
 use ndarray_rand::rand_distr::Uniform;

@@ -65,7 +65,7 @@ impl RNN {
         match name.to_lowercase().as_str() {
             "gradientdescent" => Box::new(GradientDescent::new(params)),
             "adam" => {
-                let mut optimizer = Adam::new(params);
+                let optimizer = Adam::new(params);
                 Box::new(optimizer)
             }
             _ => panic!("Unsupported optimizer: {}", name),
@@ -105,9 +105,9 @@ impl RNN {
         let mut dh = dh;
         let mut dc = Array2::zeros(dh.dim()); // Only needed if the last layer is LSTM
     
-        for (i, layer) in self.layers.iter_mut().enumerate().rev() { // Mutable iteration
+        for (_i, layer) in self.layers.iter_mut().enumerate().rev() { // Mutable iteration
             if let Some(lstm_layer) = layer.as_any_mut().downcast_mut::<LSTMCell>() { // Mutable downcast
-                let (new_dh, new_dc, new_dc_prev) = lstm_layer.backward(&dh, &dc);
+                let (new_dh, new_dc, _new_dc_prev) = lstm_layer.backward(&dh, &dc);
                 dh = new_dh;
                 dc = new_dc;
             } else {

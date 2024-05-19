@@ -50,7 +50,7 @@ impl Adam {
             panic!("Optimizer parameters not initialized. Call `initialize_parameters` first.");
         }
 
-        let idx = self.param_index.get(name).expect("Parameter name not found in index.");
+        let _idx = self.param_index.get(name).expect("Parameter name not found in index.");
         let mut param = param.to_owned();
         let grad_param = grad_param.to_owned();
 
