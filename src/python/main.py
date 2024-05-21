@@ -1,9 +1,11 @@
+import cProfile
 from networks.rnn.tests.test_rnn import *
 
 
 if __name__ == '__main__':
     # test_rnn()
     test_rnn_on_sine_wave()
+    cProfile.run('test_rnn_on_sine_wave()', 'restats')
     # test_rnn_with_adagrad()
     # test_rnn_with_adam()
     # test_rnn_with_grad_descent()

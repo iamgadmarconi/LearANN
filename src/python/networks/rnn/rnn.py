@@ -6,7 +6,11 @@ from utils.optimizers.gradient_descent import GradientDescent
 from utils.optimizers.adam import Adam
 from utils.layers.dense import Layer, GPULayer
 from utils.layers.lstm import LSTMCell
-from utils.cuda.cuda import gpu_mse_loss
+try:
+    from utils.cuda.cuda import gpu_mse_loss
+except ImportError:
+    def gpu_mse_loss(pred, target, N):
+        return ((pred - target) ** 2).mean()
 
 
 class RNN:
