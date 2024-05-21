@@ -155,7 +155,7 @@ class RNN:
     def cross_entropy_grad(outputs, targets):
         return outputs - targets
 
-    @jit(nopython=False, fastmath=True, cache=True, nogil=True)
+    # @jit(nopython=False, fastmath=True, cache=True, nogil=True)
     def predict(self, x):
         predictions = []
         for i in range(len(x)):
