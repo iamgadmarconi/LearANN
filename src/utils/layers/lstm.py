@@ -35,7 +35,6 @@ class LSTMCell(Layer):
         self.biases = np.zeros((4 * hidden_size, 1), dtype=np.float32)
         self._init_gate_activations(gate_activation)
 
-
     def _init_gate_activations(self, gate_activation):
         if gate_activation == 'relu':
             self.gate_activation = self.relu
